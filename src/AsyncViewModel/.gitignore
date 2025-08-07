@@ -1,0 +1,35 @@
+# Swift Package Manager
+/.build/
+/Packages/
+/*.xcodeproj
+/xcshareddata/
+/xccheckout
+Package.resolved
+
+# Xcode
+build/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM/
+*.xcworkspace/
+xcuserdata/
+
+# Carthage
+Carthage/
+
+# CocoaPods
+Pods/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# macOS
+.DS_Store
+*.swp
+
+# Local Swift PM config
+/.swiftpm
