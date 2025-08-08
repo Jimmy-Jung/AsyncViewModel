@@ -2,6 +2,9 @@ import ProjectDescription
 
 let project = Project(
     name: "AsyncViewModelExample",
+    packages: [
+        .local(path: "Modules/Features/CalculatorFeature"),
+    ],
     targets: [
         .target(
             name: "AsyncViewModelExample",
@@ -18,7 +21,9 @@ let project = Project(
             ),
             sources: ["AsyncViewModelExample/Sources/**"],
             resources: ["AsyncViewModelExample/Resources/**"],
-            dependencies: []
+            dependencies: [
+                .package(product: "CalculatorFeature"),
+            ]
         ),
         .target(
             name: "AsyncViewModelExampleTests",
