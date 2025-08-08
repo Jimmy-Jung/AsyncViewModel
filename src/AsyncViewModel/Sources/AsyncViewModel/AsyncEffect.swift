@@ -8,7 +8,7 @@
 import Foundation
 
 /// ViewModel에서 반환할 수 있는 효과(Effect)를 정의합니다.
-public enum AsyncEffect<Action: Equatable & Sendable>: Equatable {
+public enum AsyncEffect<Action: Equatable & Sendable>: Equatable, Sendable {
     /// 아무것도 하지 않습니다.
     case none
     /// 일반적인 액션을 실행합니다.
@@ -17,8 +17,10 @@ public enum AsyncEffect<Action: Equatable & Sendable>: Equatable {
     case run(id: (any Hashable & Sendable)? = nil, operation: AsyncOperation<Action>)
     /// 특정 ID를 가진 작업을 취소합니다.
     case cancel(id: any Hashable & Sendable)
-    /// 여러 Effect를 병합합니다.
+    /// 여러 Effect를 직렬로 병합합니다.
     case merge([AsyncEffect<Action>])
+    /// 여러 Effect를 병렬로 실행합니다.
+    case concurrent([AsyncEffect<Action>])
 
     public static func == (lhs: AsyncEffect<Action>, rhs: AsyncEffect<Action>) -> Bool {
         switch (lhs, rhs) {
@@ -32,6 +34,8 @@ public enum AsyncEffect<Action: Equatable & Sendable>: Equatable {
             return lhsId.hashValue == rhsId.hashValue
         case let (.merge(lhsEffects), .merge(rhsEffects)):
             return lhsEffects == rhsEffects
+        case let (.concurrent(lhsEffects), .concurrent(rhsEffects)):
+            return lhsEffects == rhsEffects
         default:
             return false
         }
@@ -41,9 +45,14 @@ public enum AsyncEffect<Action: Equatable & Sendable>: Equatable {
 // MARK: - Convenience Extensions
 
 public extension AsyncEffect {
-    /// 여러 Effect를 병합하는 편의 메서드
+    /// 여러 Effect를 직렬로 병합하는 편의 메서드
     static func merge(_ effects: AsyncEffect<Action>...) -> AsyncEffect<Action> {
         return .merge(effects)
+    }
+    
+    /// 여러 Effect를 병렬로 실행하는 편의 메서드
+    static func concurrent(_ effects: AsyncEffect<Action>...) -> AsyncEffect<Action> {
+        return .concurrent(effects)
     }
 
     /// 단일 액션을 반환하는 비동기 작업을 실행하는 편의 메서드

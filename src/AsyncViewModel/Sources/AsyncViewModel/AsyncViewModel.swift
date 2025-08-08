@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os.log
 
 // MARK: - AsyncViewModel Protocol
 
@@ -25,6 +26,12 @@ public protocol AsyncViewModel: ObservableObject {
 
     /// 진행 중인 작업을 관리하는 딕셔너리
     var tasks: [AnyHashable: Task<Void, Never>] { get set }
+    
+    /// Effect 직렬 처리를 위한 큐
+    var effectQueue: [AsyncEffect<Action>] { get set }
+    
+    /// Effect 처리 상태
+    var isProcessingEffects: Bool { get set }
 
     /// 입력 이벤트를 전송하여 처리를 시작합니다.
     func send(_ input: Input)
@@ -54,12 +61,23 @@ public extension AsyncViewModel {
     /// 액션을 직접 처리하는 메서드
     func perform(_ action: Action) {
         let effects = reduce(state: &state, action: action)
-
-        for effect in effects {
-            Task { [weak self] in
-                await self?.handleEffect(effect)
-            }
+        effectQueue.append(contentsOf: effects)
+        
+        Task {
+            await processNextEffect()
         }
+    }
+    
+    private func processNextEffect() async {
+        guard !isProcessingEffects else { return }
+        isProcessingEffects = true
+        
+        while !effectQueue.isEmpty {
+            let effect = effectQueue.removeFirst()
+            await handleEffect(effect)
+        }
+        
+        isProcessingEffects = false
     }
 
     private func handleEffect(_ effect: AsyncEffect<Action>) async {
@@ -117,11 +135,24 @@ public extension AsyncViewModel {
             for effect in effects {
                 await handleEffect(effect)
             }
+            
+        case let .concurrent(effects):
+            // 메인 액터 격리를 유지한 병렬 처리: 각 작업을 메인 액터에서 생성/대기하여
+            // 'sending' 경고 없이 안전하게 실행합니다.
+            let tasks = effects.map { effect in
+                Task { @MainActor in
+                    await handleEffect(effect)
+                }
+            }
+            for task in tasks {
+                await task.value
+            }
         }
     }
 
     /// 에러 처리를 위한 기본 구현
     func handleError(_ error: SendableError) {
-        print("AsyncViewModel error: \(error.localizedDescription)")
+        let logger = Logger(subsystem: "com.jimmy.AsyncViewModel", category: String(describing: Self.self))
+        logger.error("AsyncViewModel error: \(error.localizedDescription, privacy: .public) [\(error.domain, privacy: .public):\(error.code, privacy: .public)]")
     }
 }

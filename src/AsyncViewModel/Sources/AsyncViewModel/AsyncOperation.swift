@@ -8,7 +8,7 @@
 import Foundation
 
 /// 비동기 작업을 감싸는 구조체
-public struct AsyncOperation<Action: Equatable & Sendable>: Equatable {
+public struct AsyncOperation<Action: Equatable & Sendable>: Equatable, Sendable {
     public let id = UUID()
     private let _operation: @Sendable () async -> AsyncOperationResult<Action>
 

@@ -22,9 +22,12 @@ struct AsyncViewModelTests {
             case setValue(Int)
             case triggerActionEffect
             case triggerAsyncEffect(shouldSucceed: Bool)
-            case triggerLongRunningTask
+            case triggerLongRunningTask(duration: UInt64)
             case cancelLongRunningTask
             case triggerMergedEffects
+            case triggerRestartableTask(value: String)
+            case triggerConcurrentEffects
+            case triggerMultipleActions
         }
 
         enum Action: Equatable, Sendable {
@@ -32,9 +35,12 @@ struct AsyncViewModelTests {
             case subsequentAction
             case asyncTaskCompleted(String)
             case asyncTaskFailed(SendableError)
-            case longRunningTaskStarted
+            case longRunningTaskStarted(duration: UInt64)
             case longRunningTaskFinished
             case cancelLongRunningTask
+            case restartableTaskCompleted(String)
+            case concurrentTaskCompleted(String)
+            case triggerRestartableTask(value: String)
         }
 
         struct State: Equatable, Sendable {
@@ -42,16 +48,22 @@ struct AsyncViewModelTests {
             var asyncResult: String?
             var lastError: String?
             var isLongTaskRunning: Bool = false
+            var restartableTaskResult: String?
+            var concurrentResults: [String] = []
         }
 
         enum CancelID: Hashable, Sendable {
             case longRunningTask
+            case restartableTask
         }
 
         // MARK: - Properties
 
         @Published var state: State
         var tasks: [AnyHashable: Task<Void, Never>] = [:]
+        var effectQueue: [AsyncEffect<Action>] = []
+        var isProcessingEffects: Bool = false
+        
         var handleErrorCallCount = 0
         var receivedError: SendableError?
 
@@ -73,12 +85,18 @@ struct AsyncViewModelTests {
                 } else {
                     return [.setValue(300)]
                 }
-            case .triggerLongRunningTask:
-                return [.longRunningTaskStarted]
+            case let .triggerLongRunningTask(duration):
+                return [.longRunningTaskStarted(duration: duration)]
             case .cancelLongRunningTask:
                 return [.cancelLongRunningTask]
             case .triggerMergedEffects:
                 return [.setValue(400)]
+            case let .triggerRestartableTask(value):
+                return [.triggerRestartableTask(value: value)]
+            case .triggerConcurrentEffects:
+                return [.setValue(500)]
+            case .triggerMultipleActions:
+                return [.setValue(1), .subsequentAction]
             }
         }
 
@@ -92,6 +110,18 @@ struct AsyncViewModelTests {
                 if value == 200 { return [.runAction { .asyncTaskCompleted("Success") }] }
                 if value == 300 { return [.runAction(id: "failureEffect") { throw MockError.simulatedFailure }] }
                 if value == 400 { return [.merge(.action(.subsequentAction), .runAction { .asyncTaskCompleted("Merged Success") })] }
+                if value == 500 {
+                    return [.concurrent(
+                        .runAction {
+                            try await Task.sleep(nanoseconds: 200_000_000) // 0.2초
+                            return .concurrentTaskCompleted("A")
+                        },
+                        .runAction {
+                            try await Task.sleep(nanoseconds: 100_000_000) // 0.1초
+                            return .concurrentTaskCompleted("B")
+                        }
+                    )]
+                }
                 return [.none]
 
             case .subsequentAction:
@@ -106,10 +136,10 @@ struct AsyncViewModelTests {
                 state.lastError = error.localizedDescription
                 return [.none]
 
-            case .longRunningTaskStarted:
+            case let .longRunningTaskStarted(duration):
                 state.isLongTaskRunning = true
                 return [.runAction(id: CancelID.longRunningTask) {
-                    try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                    try await Task.sleep(nanoseconds: duration)
                     return .longRunningTaskFinished
                 }]
 
@@ -119,6 +149,20 @@ struct AsyncViewModelTests {
 
             case .cancelLongRunningTask:
                 return [.cancel(id: CancelID.longRunningTask)]
+                
+            case let .restartableTaskCompleted(value):
+                state.restartableTaskResult = value
+                return [.none]
+                
+            case let .concurrentTaskCompleted(value):
+                state.concurrentResults.append(value)
+                return [.none]
+                
+            case let .triggerRestartableTask(value):
+                return [.runAction(id: CancelID.restartableTask) {
+                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1초
+                    return .restartableTaskCompleted(value)
+                }]
             }
         }
 
@@ -139,7 +183,8 @@ struct AsyncViewModelTests {
     @Test("send 호출 시 state가 동기적으로 변경되어야 한다")
     func send_updatesStateSynchronously() {
         // Given
-        let testStore = AsyncTestStore(viewModel: MockViewModel())
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
 
         // When
         testStore.send(MockViewModel.Input.setValue(10))
@@ -151,7 +196,8 @@ struct AsyncViewModelTests {
     @Test("Action Effect가 올바르게 처리되어야 한다")
     func actionEffect_triggersSubsequentAction() async throws {
         // Given
-        let testStore = AsyncTestStore(viewModel: MockViewModel())
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
 
         // When
         testStore.send(MockViewModel.Input.triggerActionEffect)
@@ -164,7 +210,8 @@ struct AsyncViewModelTests {
     @Test("성공적인 비동기 작업 후 state가 변경되어야 한다")
     func runEffect_succeedsAndUpdatesState() async throws {
         // Given
-        let testStore = AsyncTestStore(viewModel: MockViewModel())
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
 
         // When
         testStore.send(MockViewModel.Input.triggerAsyncEffect(shouldSucceed: true))
@@ -178,11 +225,12 @@ struct AsyncViewModelTests {
     @Test("실패하는 비동기 작업 시 handleError가 호출되어야 한다")
     func runEffect_failsAndCallsHandleError() async throws {
         // Given
-        let testStore = AsyncTestStore(viewModel: MockViewModel())
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
 
         // 초기 상태 확인
-        #expect(testStore.viewModel.handleErrorCallCount == 0)
-        #expect(testStore.viewModel.receivedError == nil)
+        #expect(viewModel.handleErrorCallCount == 0)
+        #expect(viewModel.receivedError == nil)
         #expect(testStore.state.lastError == nil)
 
         // When
@@ -196,10 +244,10 @@ struct AsyncViewModelTests {
         try await testStore.wait(for: { $0.lastError == "Simulated Failure" })
 
         // handleError가 호출되었는지 확인
-        #expect(testStore.viewModel.handleErrorCallCount == 1)
+        #expect(viewModel.handleErrorCallCount == 1)
 
         // 올바른 에러가 전달되었는지 확인
-        #expect(testStore.viewModel.receivedError?.localizedDescription == "Simulated Failure")
+        #expect(viewModel.receivedError?.localizedDescription == "Simulated Failure")
 
         // state.lastError가 올바르게 설정되었는지 확인
         #expect(testStore.state.lastError == "Simulated Failure")
@@ -208,10 +256,11 @@ struct AsyncViewModelTests {
     @Test("실행 중인 작업을 취소할 수 있어야 한다")
     func cancelEffect_cancelsRunningTask() async throws {
         // Given
-        let testStore = AsyncTestStore(viewModel: MockViewModel())
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
 
         // When
-        testStore.send(MockViewModel.Input.triggerLongRunningTask)
+        testStore.send(MockViewModel.Input.triggerLongRunningTask(duration: 2_000_000_000))
 
         // Then
         // 상태가 변경되고 작업이 시작될 때까지 기다림
@@ -220,22 +269,23 @@ struct AsyncViewModelTests {
 
         // 작업이 tasks 딕셔너리에 저장될 때까지 기다림
         try await testStore.wait(for: { _ in
-            testStore.viewModel.tasks[MockViewModel.CancelID.longRunningTask] != nil
+            viewModel.tasks[MockViewModel.CancelID.longRunningTask] != nil
         }, timeout: 1.0)
-        #expect(testStore.viewModel.tasks[MockViewModel.CancelID.longRunningTask] != nil)
+        #expect(viewModel.tasks[MockViewModel.CancelID.longRunningTask] != nil)
 
         // When
         testStore.send(MockViewModel.Input.cancelLongRunningTask)
 
         // Then
-        try await testStore.wait(for: { _ in testStore.viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil })
-        #expect(testStore.viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil)
+        try await testStore.wait(for: { _ in viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil })
+        #expect(viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil)
     }
 
     @Test("Merge Effect가 모든 내부 Effect를 실행해야 한다")
     func mergeEffect_executesAllEffects() async throws {
         // Given
-        let testStore = AsyncTestStore(viewModel: MockViewModel())
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
 
         // When
         testStore.send(MockViewModel.Input.triggerMergedEffects)
@@ -244,5 +294,119 @@ struct AsyncViewModelTests {
         try await testStore.wait(for: { $0.asyncResult == "Merged Success" })
         #expect(testStore.state.currentValue == 999)
         #expect(testStore.state.asyncResult == "Merged Success")
+    }
+
+    @Test("동일 ID로 재시작 시 이전 작업이 취소되어야 한다")
+    func restartableTask_cancelsPreviousTask() async throws {
+        // Given
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
+
+        // When
+        // 첫 번째 작업을 시작 (1초 소요)
+        testStore.send(.triggerRestartableTask(value: "first"))
+
+        // 짧은 지연 후 두 번째 작업을 시작하여 이전 작업을 취소
+        try await Task.sleep(nanoseconds: 100_000_000) // 0.1초
+        testStore.send(.triggerRestartableTask(value: "second"))
+
+        // Then
+        // 두 번째 작업이 완료될 때까지 기다림 (최종 결과가 "second"가 될 때까지)
+        try await testStore.wait(for: { $0.restartableTaskResult == "second" }, timeout: 2.0)
+
+        // 최종 상태는 두 번째 작업의 결과여야 함
+        #expect(testStore.state.restartableTaskResult == "second")
+        
+        // 작업 완료 후 tasks 딕셔너리는 비어있어야 함
+        try await testStore.wait(for: { _ in viewModel.tasks[MockViewModel.CancelID.restartableTask] == nil })
+        #expect(viewModel.tasks[MockViewModel.CancelID.restartableTask] == nil)
+    }
+
+    @Test("완료된 작업은 tasks 딕셔너리에서 자동 정리되어야 한다")
+    func task_isRemovedFromDictionaryOnCompletion() async throws {
+        // Given
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
+        let taskID = MockViewModel.CancelID.longRunningTask
+
+        // When
+        // 짧은 작업을 시작
+        testStore.send(.triggerLongRunningTask(duration: 100_000_000)) // 0.1초
+
+        // Then
+        // 작업이 시작되고 tasks 딕셔너리에 등록될 때까지 기다림
+        try await testStore.wait(for: { _ in viewModel.tasks[taskID] != nil })
+        #expect(viewModel.tasks[taskID] != nil)
+
+        // 작업이 완료되고 isLongTaskRunning이 false로 바뀔 때까지 기다림
+        try await testStore.wait(for: { !$0.isLongTaskRunning }, timeout: 1.0)
+        #expect(testStore.state.isLongTaskRunning == false)
+
+        // 작업 완료 후 tasks 딕셔너리에서 해당 ID가 제거되었는지 확인
+        try await testStore.wait(for: { _ in viewModel.tasks[taskID] == nil })
+        #expect(viewModel.tasks[taskID] == nil)
+    }
+
+    @Test("작업 취소 시 후속 액션이 발행되지 않아야 한다")
+    func cancel_shouldPreventSubsequentActions() async throws {
+        // Given
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
+        
+        // When
+        // 긴 작업을 시작
+        testStore.send(.triggerLongRunningTask(duration: 2_000_000_000)) // 2초
+        
+        // 작업이 시작되었는지 확인
+        try await testStore.wait(for: { $0.isLongTaskRunning == true })
+        #expect(testStore.state.isLongTaskRunning == true)
+        
+        // 즉시 작업을 취소
+        testStore.send(.cancelLongRunningTask)
+        
+        // Then
+        // tasks 딕셔너리에서 즉시 제거되는지 확인
+        try await testStore.wait(for: { _ in viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil })
+        #expect(viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil)
+        
+        // 작업의 원래 소요 시간(2초)보다 더 오래 기다림
+        try await Task.sleep(nanoseconds: 2_500_000_000)
+        
+        // longRunningTaskFinished 액션이 호출되지 않았으므로, isLongTaskRunning 상태는 true로 유지되어야 함
+        #expect(testStore.state.isLongTaskRunning == true)
+    }
+
+    @Test("Concurrent Effect가 모든 내부 Effect를 병렬로 실행해야 한다")
+    func concurrentEffect_executesAllEffectsInParallel() async throws {
+        // Given
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
+        
+        // When
+        testStore.send(.triggerConcurrentEffects)
+        
+        // Then
+        // 두 작업이 모두 완료될 때까지 기다림 (결과가 2개가 될 때까지)
+        try await testStore.wait(for: { $0.concurrentResults.count == 2 }, timeout: 1.0)
+        
+        // 순서에 관계없이 두 결과가 모두 포함되었는지 확인
+        let expectedResults = Set(["A", "B"])
+        let actualResults = Set(testStore.state.concurrentResults)
+        #expect(actualResults == expectedResults)
+    }
+
+    @Test("transform이 여러 Action을 반환할 때 순차적으로 처리되어야 한다")
+    func transform_shouldProcessMultipleActionsSequentially() async throws {
+        // Given
+        let viewModel = MockViewModel()
+        let testStore = AsyncTestStore(viewModel: viewModel)
+        
+        // When
+        testStore.send(.triggerMultipleActions)
+        
+        // Then
+        // .setValue(1) -> .subsequentAction 순서로 실행되어 최종 값은 999가 되어야 함
+        try await testStore.wait(for: { $0.currentValue == 999 }, timeout: 1.0)
+        #expect(testStore.state.currentValue == 999)
     }
 }
