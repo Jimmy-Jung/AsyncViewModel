@@ -60,9 +60,10 @@ struct AsyncViewModelTests {
         // MARK: - Properties
 
         @Published var state: State
-        var tasks: [AnyHashable: Task<Void, Never>] = [:]
-        var effectQueue: [AsyncEffect<Action>] = []
+        var tasks: [CancelID: Task<Void, Never>] = [:]
+        var effectQueue: [AsyncEffect<Action, CancelID>] = []
         var isProcessingEffects: Bool = false
+        var actionObserver: ((Action) -> Void)?
         
         var handleErrorCallCount = 0
         var receivedError: SendableError?
@@ -102,13 +103,13 @@ struct AsyncViewModelTests {
 
         // MARK: - Reduce
 
-        func reduce(state: inout State, action: Action) -> [AsyncEffect<Action>] {
+        func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
             switch action {
             case let .setValue(value):
                 state.currentValue = value
                 if value == 100 { return [.action(.subsequentAction)] }
                 if value == 200 { return [.runAction { .asyncTaskCompleted("Success") }] }
-                if value == 300 { return [.runAction(id: "failureEffect") { throw MockError.simulatedFailure }] }
+                if value == 300 { return [.runAction(id: CancelID.longRunningTask) { throw MockError.simulatedFailure }] }
                 if value == 400 { return [.merge(.action(.subsequentAction), .runAction { .asyncTaskCompleted("Merged Success") })] }
                 if value == 500 {
                     return [.concurrent(
@@ -138,10 +139,11 @@ struct AsyncViewModelTests {
 
             case let .longRunningTaskStarted(duration):
                 state.isLongTaskRunning = true
-                return [.runAction(id: CancelID.longRunningTask) {
-                    try await Task.sleep(nanoseconds: duration)
-                    return .longRunningTaskFinished
-                }]
+                return [.sleepThen(
+                    id: CancelID.longRunningTask,
+                    for: TimeInterval(duration) / 1_000_000_000, // nanoseconds를 초 단위로 변환
+                    action: .longRunningTaskFinished
+                )]
 
             case .longRunningTaskFinished:
                 state.isLongTaskRunning = false
@@ -159,10 +161,11 @@ struct AsyncViewModelTests {
                 return [.none]
                 
             case let .triggerRestartableTask(value):
-                return [.runAction(id: CancelID.restartableTask) {
-                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1초
-                    return .restartableTaskCompleted(value)
-                }]
+                return [.sleepThen(
+                    id: CancelID.restartableTask,
+                    for: 1.0, // 1초
+                    action: .restartableTaskCompleted(value)
+                )]
             }
         }
 

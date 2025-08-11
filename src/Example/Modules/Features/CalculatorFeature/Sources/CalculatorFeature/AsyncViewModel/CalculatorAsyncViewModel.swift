@@ -61,10 +61,13 @@ extension CalculatorAsyncViewModel {
 // MARK: - Improved CalculatorAsyncViewModel
 public final class CalculatorAsyncViewModel: AsyncViewModel {
     
+    
+    
     // MARK: - Properties
     @Published public var state: State
-    public var tasks: [AnyHashable: Task<Void, Never>] = [:]
-    public var effectQueue: [AsyncEffect<Action>] = []
+    public var tasks: [CancelID: Task<Void, Never>] = [:]
+    public var effectQueue: [AsyncEffect<Action, CancelID>] = []
+    public var actionObserver: ((Action) -> Void)? = nil
     public var isProcessingEffects: Bool = false
 
     // MARK: - Dependencies
@@ -101,9 +104,7 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
     }
 
     // MARK: - Reducer Implementation
-    public func reduce(state: inout State, action: Action) -> [AsyncEffect<
-        Action
-    >] {
+    public func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
         switch action {
         case .inputNumber(let digit):
             let currentCalculatorState = state.calculatorState
@@ -156,7 +157,7 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
                 .runAction(
                     id: CancelID.autoClearTimer,
                     operation: {
-                        try await Task.sleep(for: .seconds(5))
+                        try await Task.sleep(nanoseconds: 5_000_000_000) // 5초
                         return .autoClear
                     }
                 ),

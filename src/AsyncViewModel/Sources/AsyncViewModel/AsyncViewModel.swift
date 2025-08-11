@@ -25,13 +25,16 @@ public protocol AsyncViewModel: ObservableObject {
     var state: State { get set }
 
     /// 진행 중인 작업을 관리하는 딕셔너리
-    var tasks: [AnyHashable: Task<Void, Never>] { get set }
+    var tasks: [CancelID: Task<Void, Never>] { get set }
     
     /// Effect 직렬 처리를 위한 큐
-    var effectQueue: [AsyncEffect<Action>] { get set }
+    var effectQueue: [AsyncEffect<Action, CancelID>] { get set }
     
     /// Effect 처리 상태
     var isProcessingEffects: Bool { get set }
+
+    /// 디버깅/테스트를 위한 액션 관찰 훅
+    var actionObserver: ((Action) -> Void)? { get set }
 
     /// 입력 이벤트를 전송하여 처리를 시작합니다.
     func send(_ input: Input)
@@ -40,7 +43,7 @@ public protocol AsyncViewModel: ObservableObject {
     func transform(_ input: Input) -> [Action]
 
     /// 순수 함수로 상태를 변경하고 부수 효과를 반환합니다.
-    func reduce(state: inout State, action: Action) -> [AsyncEffect<Action>]
+    func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>]
 
     /// 에러 처리를 위한 메서드
     func handleError(_ error: SendableError)
@@ -60,6 +63,7 @@ public extension AsyncViewModel {
 
     /// 액션을 직접 처리하는 메서드
     func perform(_ action: Action) {
+        actionObserver?(action)
         let effects = reduce(state: &state, action: action)
         effectQueue.append(contentsOf: effects)
         
@@ -80,56 +84,63 @@ public extension AsyncViewModel {
         isProcessingEffects = false
     }
 
-    private func handleEffect(_ effect: AsyncEffect<Action>) async {
+    private func handleEffect(_ effect: AsyncEffect<Action, CancelID>) async {
         switch effect {
         case .none:
             break
 
         case let .action(action):
-            await MainActor.run {
-                perform(action)
-            }
+            // 재귀적으로 perform을 호출하지 않고, 현재 처리 루프에 통합하여 평탄화
+            actionObserver?(action)
+            let newEffects = reduce(state: &state, action: action)
+            // 새 이펙트를 큐의 앞쪽에 삽입하여 순서를 보장
+            effectQueue.insert(contentsOf: newEffects, at: 0)
 
         case let .run(id, operation):
             // 기존 작업이 있다면 취소
             if let id = id {
-                let hashableId = AnyHashable(id)
-                tasks[hashableId]?.cancel()
+                tasks[id]?.cancel()
             }
 
             let task = Task {
                 let result = await operation()
 
                 await MainActor.run { [weak self] in
+                    guard let self else { return }
                     switch result {
                     case let .action(action):
-                        self?.perform(action)
+                        // 결과 액션도 현재 루프에 통합
+                        self.actionObserver?(action)
+                        let effects = self.reduce(state: &self.state, action: action)
+                        self.effectQueue.insert(contentsOf: effects, at: 0)
                     case let .actions(actions):
-                        actions.forEach { self?.perform($0) }
+                        for action in actions.reversed() {
+                            self.actionObserver?(action)
+                            let effects = self.reduce(state: &self.state, action: action)
+                            self.effectQueue.insert(contentsOf: effects, at: 0)
+                        }
                     case .none:
                         break
                     case let .error(error):
-                        self?.handleError(error)
+                        self.handleError(error)
                     }
                 }
             }
 
             if let id = id {
-                let hashableId = AnyHashable(id)
-                tasks[hashableId] = task
+                tasks[id] = task
 
                 Task {
                     await task.value
                     await MainActor.run { [weak self] in
-                        self?.tasks[hashableId] = nil
+                        self?.tasks[id] = nil
                     }
                 }
             }
 
         case let .cancel(id):
-            let hashableId = AnyHashable(id)
-            tasks[hashableId]?.cancel()
-            tasks[hashableId] = nil
+            tasks[id]?.cancel()
+            tasks[id] = nil
 
         case let .merge(effects):
             for effect in effects {
@@ -137,8 +148,7 @@ public extension AsyncViewModel {
             }
             
         case let .concurrent(effects):
-            // 메인 액터 격리를 유지한 병렬 처리: 각 작업을 메인 액터에서 생성/대기하여
-            // 'sending' 경고 없이 안전하게 실행합니다.
+            // 메인 액터 격리를 유지한 병렬 처리
             let tasks = effects.map { effect in
                 Task { @MainActor in
                     await handleEffect(effect)
