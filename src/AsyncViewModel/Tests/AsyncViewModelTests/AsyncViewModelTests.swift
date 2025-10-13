@@ -133,7 +133,7 @@ struct AsyncViewModelTests {
                 if value == 100 { return [.action(.subsequentAction)] }
                 if value == 200 { return [.run { .asyncTaskCompleted("Success") }] }
                 if value == 300 { return [.run(id: CancelID.longRunningTask) { throw MockError.simulatedFailure }] }
-                if value == 400 { return [.merge(.action(.subsequentAction), .run { .asyncTaskCompleted("Merged Success") })] }
+                if value == 400 { return [.action(.subsequentAction), .run { .asyncTaskCompleted("Sequential Success") }] }
                 if value == 500 {
                     return [.concurrent(
                         .run {
