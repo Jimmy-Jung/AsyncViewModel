@@ -11,7 +11,7 @@ import Foundation
 public protocol CalculatorUseCaseProtocol {
     func inputNumber(_ digit: Int, currentState: CalculatorState) throws -> CalculatorState
     func setOperation(_ operation: CalculatorOperation, currentState: CalculatorState) throws -> CalculatorState
-    func calculate(currentState: CalculatorState) throws -> CalculatorState
+    func calculate(currentState: CalculatorState) async throws -> CalculatorState
     func clear() -> CalculatorState
 }
 
@@ -85,13 +85,13 @@ public final class CalculatorUseCase: CalculatorUseCaseProtocol {
     }
     
     // 계산 수행
-    public func calculate(currentState: CalculatorState) throws -> CalculatorState {
+    public func calculate(currentState: CalculatorState) async throws -> CalculatorState {
         guard let operation = currentState.currentOperation else {
             return currentState
         }
         
         let calculatedState = try performCalculation(operation, currentState: currentState)
-        
+//        try await Task.sleep(nanoseconds: 1_000_000_000)
         return CalculatorState(
             display: calculatedState.display,
             currentValue: calculatedState.currentValue,

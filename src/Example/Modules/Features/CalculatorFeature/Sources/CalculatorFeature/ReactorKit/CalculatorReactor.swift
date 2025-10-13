@@ -156,8 +156,8 @@ final class CalculatorReactor: Reactor {
             }
             
             do {
-                let newState = try self.calculatorUseCase.calculate(currentState: self.currentState.calculatorState)
-                observer.onNext(.setCalculatorState(newState))
+//                let newState = try self.calculatorUseCase.calculate(currentState: self.currentState.calculatorState)
+//                observer.onNext(.setCalculatorState(newState))
                 observer.onCompleted()
             } catch {
                 observer.onNext(.setError(error))

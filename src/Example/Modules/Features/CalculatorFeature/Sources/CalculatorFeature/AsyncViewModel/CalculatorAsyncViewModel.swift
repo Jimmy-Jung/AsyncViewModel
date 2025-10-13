@@ -5,8 +5,8 @@
 //  Created by 정준혁 on 2025/08/08
 //
 
-import Foundation
 import AsyncViewModel
+import Foundation
 
 extension CalculatorAsyncViewModel {
 
@@ -30,13 +30,13 @@ extension CalculatorAsyncViewModel {
         case stateUpdated(CalculatorState)
         case displayUpdated(String)
     }
-    
+
     public struct State: Equatable & Sendable {
         var display: String = "0"
         var activeAlert: AlertType?
         var calculatorState: CalculatorState = .initial
         var isAutoClearTimerActive: Bool = false
-        
+
         public init() {}
 
         // 알림 타입을 정의하는 enum
@@ -47,7 +47,8 @@ extension CalculatorAsyncViewModel {
             public static func == (lhs: AlertType, rhs: AlertType) -> Bool {
                 switch (lhs, rhs) {
                 case (.error(let lhsError), .error(let rhsError)):
-                    return lhsError.localizedDescription == rhsError.localizedDescription
+                    return lhsError.localizedDescription
+                        == rhsError.localizedDescription
                 }
             }
         }
@@ -60,16 +61,14 @@ extension CalculatorAsyncViewModel {
 
 // MARK: - Improved CalculatorAsyncViewModel
 public final class CalculatorAsyncViewModel: AsyncViewModel {
-    
-    
-    
+
     // MARK: - Properties
     @Published public var state: State
     public var tasks: [CancelID: Task<Void, Never>] = [:]
     public var effectQueue: [AsyncEffect<Action, CancelID>] = []
     public var actionObserver: ((Action) -> Void)? = nil
     public var isProcessingEffects: Bool = false
-    
+
     // MARK: - Logging Properties
     public var isLoggingEnabled: Bool = true
     public var logLevel: LogLevel = .info
@@ -90,7 +89,7 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
         initialState: State = State(),
         calculatorUseCase: CalculatorUseCaseProtocol = CalculatorUseCase(),
         isLoggingEnabled: Bool = true,
-        logLevel: LogLevel = .info
+        logLevel: LogLevel = .debug
     ) {
         self.state = initialState
         self.calculatorUseCase = calculatorUseCase
@@ -118,60 +117,58 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
     }
 
     // MARK: - Reducer Implementation
-    public func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
+    public func reduce(state: inout State, action: Action) -> [AsyncEffect<
+        Action, CancelID
+    >] {
         switch action {
-        case .inputNumber(let digit):
-            let currentCalculatorState = state.calculatorState
-            return [
-                .cancel(id: CancelID.autoClearTimer),
-                .action(.setTimerActive(false)),
-                .run(operation: { [calculatorUseCase] in
-                    do {
+            case .inputNumber(let digit):
+                let currentCalculatorState = state.calculatorState
+                return [
+                    .cancel(id: CancelID.autoClearTimer),
+                    .action(.setTimerActive(false)),
+                    .run(operation: { [calculatorUseCase] in
                         let newState = try calculatorUseCase.inputNumber(
                             digit,
                             currentState: currentCalculatorState
                         )
                         return .stateUpdated(newState)
-                    } catch {
-                        return .errorOccurred(SendableError(error))
-                    }
-                }),
-            ]
+                    }),
+                ]
 
         case .setOperation(let operation):
             return [
                 .cancel(id: CancelID.autoClearTimer),
                 .action(.setTimerActive(false)),
-                .run(operation: { [calculatorUseCase, currentCalculatorState = state.calculatorState] in
-                    do {
-                        let newState = try calculatorUseCase.setOperation(
-                            operation,
-                            currentState: currentCalculatorState
-                        )
-                        return .stateUpdated(newState)
-                    } catch {
-                        return .errorOccurred(SendableError(error))
-                    }
+                .run(operation: {
+                    [
+                        calculatorUseCase,
+                        currentCalculatorState = state.calculatorState
+                    ] in
+                    let newState = try calculatorUseCase.setOperation(
+                        operation,
+                        currentState: currentCalculatorState
+                    )
+                    return .stateUpdated(newState)
                 }),
             ]
 
         case .calculate:
             return [
                 .action(.setTimerActive(true)),
-                .run(operation: { [calculatorUseCase, currentCalculatorState = state.calculatorState] in
-                    do {
-                        let newState = try calculatorUseCase.calculate(
-                            currentState: currentCalculatorState
-                        )
-                        return .stateUpdated(newState)
-                    } catch {
-                        return .errorOccurred(SendableError(error))
-                    }
+                .run(operation: {
+                    [
+                        calculatorUseCase,
+                        currentCalculatorState = state.calculatorState
+                    ] in
+                    let newState = try await calculatorUseCase.calculate(
+                        currentState: currentCalculatorState
+                    )
+                    return .stateUpdated(newState)
                 }),
                 .run(
                     id: CancelID.autoClearTimer,
                     operation: {
-                        try await Task.sleep(nanoseconds: 5_000_000_000) // 5초
+                        try await Task.sleep(nanoseconds: 5_000_000_000)  // 5초
                         return .autoClear
                     }
                 ),
@@ -218,7 +215,7 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
             return [.none]
         }
     }
-    
+
     public func handleError(_ error: SendableError) {
         perform(.errorOccurred(error))
     }

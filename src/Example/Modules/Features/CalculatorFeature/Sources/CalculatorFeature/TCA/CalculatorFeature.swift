@@ -167,7 +167,7 @@ struct CalculatorFeature {
     private func handleEqualsTapped(state: inout State) -> Effect<Action> {
         .run { [currentState = state.calculatorState] send in
             do {
-                let newState = try calculatorUseCase.calculate(currentState: currentState)
+                let newState = try await calculatorUseCase.calculate(currentState: currentState)
                 await send(.stateUpdated(newState))
                 // 계산 완료 후 자동 클리어 타이머 시작
                 await send(.startAutoClearTimer)
