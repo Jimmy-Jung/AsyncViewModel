@@ -102,11 +102,11 @@ struct AsyncEffectTests {
         #expect(concurrentManually == concurrentWithConvenience)
     }
 
-    @Test("Convenience: .runAction이 성공 시 .action을 반환한다")
-    func convenience_runActionReturnsActionOnSuccess() async {
-        let effect: AsyncEffect<MockAction, MockCancelID> = .runAction { .increment }
+    @Test("Convenience: .run이 성공 시 .action을 반환한다")
+    func convenience_runReturnsActionOnSuccess() async {
+        let effect: AsyncEffect<MockAction, MockCancelID> = .run { .increment }
         guard case let .run(_, operation) = effect else {
-            Issue.record("runAction이 .run Effect를 생성하지 않음")
+            Issue.record("run이 .run Effect를 생성하지 않음")
             return
         }
         
@@ -114,13 +114,13 @@ struct AsyncEffectTests {
         #expect(result == .action(.increment))
     }
 
-    @Test("Convenience: .runAction이 실패 시 .error를 반환한다")
-    func convenience_runActionReturnsErrorOnFailure() async {
+    @Test("Convenience: .run이 실패 시 .error를 반환한다")
+    func convenience_runReturnsErrorOnFailure() async {
         enum TestError: Error { case failure }
-        let effect = AsyncEffect<MockAction, MockCancelID>.runAction { throw TestError.failure }
+        let effect = AsyncEffect<MockAction, MockCancelID>.run { throw TestError.failure }
         
         guard case let .run(_, operation) = effect else {
-            Issue.record("runAction이 .run Effect를 생성하지 않음")
+            Issue.record("run이 .run Effect를 생성하지 않음")
             return
         }
         
@@ -128,18 +128,17 @@ struct AsyncEffectTests {
         #expect(result == .error(SendableError(TestError.failure)))
     }
 
-    @Test("Convenience: .runActions가 성공 시 .actions를 반환한다")
-    func convenience_runActionsReturnsActionsOnSuccess() async {
-        let actions: [MockAction] = [.increment, .decrement]
-        let effect: AsyncEffect<MockAction, MockCancelID> = .runActions { actions }
+    @Test("Convenience: .sleepThen이 지정된 시간 후 액션을 반환한다")
+    func convenience_sleepThenReturnsActionAfterDelay() async {
+        let effect: AsyncEffect<MockAction, MockCancelID> = .sleepThen(for: 0.1, action: .increment)
         
         guard case let .run(_, operation) = effect else {
-            Issue.record("runActions가 .run Effect를 생성하지 않음")
+            Issue.record("sleepThen이 .run Effect를 생성하지 않음")
             return
         }
         
         let result = await operation()
-        #expect(result == .actions(actions))
+        #expect(result == .action(.increment))
     }
 }
 

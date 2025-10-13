@@ -41,12 +41,12 @@ struct AsyncOperationTests {
         #expect(result == .action(.success))
     }
 
-    @Test("callAsFunction이 .actions를 올바르게 반환한다")
-    func callAsFunction_returnsActionsCorrectly() async {
-        let actions: [MockAction] = [.success, .success]
-        let operation = AsyncOperation<MockAction> { .actions(actions) }
+    @Test("callAsFunction이 .error를 올바르게 반환한다")
+    func callAsFunction_returnsErrorCorrectly() async {
+        enum TestError: Error { case failure }
+        let operation = AsyncOperation<MockAction> { .error(SendableError(TestError.failure)) }
         let result = await operation()
-        #expect(result == .actions(actions))
+        #expect(result == .error(SendableError(TestError.failure)))
     }
 
     @Test("callAsFunction이 .none을 올바르게 반환한다")
@@ -54,14 +54,6 @@ struct AsyncOperationTests {
         let operation = AsyncOperation<MockAction> { .none }
         let result = await operation()
         #expect(result == .none)
-    }
-
-    @Test("callAsFunction이 .error를 올바르게 반환한다")
-    func callAsFunction_returnsErrorCorrectly() async {
-        enum TestError: Error { case failure }
-        let operation = AsyncOperation<MockAction> { .error(SendableError(TestError.failure)) }
-        let result = await operation()
-        #expect(result == .error(SendableError(TestError.failure)))
     }
 }
 

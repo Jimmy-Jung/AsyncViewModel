@@ -12,16 +12,17 @@ let package = Package(
         .watchOS(.v8),
     ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "AsyncViewModel",
-            targets: ["AsyncViewModel"]),
+            targets: ["AsyncViewModel"]
+        ),
     ],
+    dependencies: [],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "AsyncViewModel"),
+            name: "AsyncViewModel",
+            dependencies: []
+        ),
         .testTarget(
             name: "AsyncViewModelTests",
             dependencies: ["AsyncViewModel"]

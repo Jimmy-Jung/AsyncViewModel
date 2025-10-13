@@ -26,7 +26,8 @@ struct AsyncTestStoreTests {
 
         // Then
         #expect(testStore.state.currentValue == 10)
-        #expect(testStore.actions.isEmpty) // send는 actions 배열에 기록되지 않음
+        // send를 통한 액션도 자동으로 기록됨 (개선된 기능)
+        #expect(testStore.actions == [.setValue(10)])
     }
 
     @Test("perform은 액션을 전달하고 상태를 변경하며, actions 배열에 기록된다")

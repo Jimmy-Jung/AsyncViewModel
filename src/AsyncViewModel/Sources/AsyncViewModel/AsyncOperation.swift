@@ -28,7 +28,6 @@ public struct AsyncOperation<Action: Equatable & Sendable>: Equatable, Sendable 
 /// 비동기 작업의 결과
 public enum AsyncOperationResult<Action: Equatable & Sendable>: Equatable, Sendable {
     case action(Action)
-    case actions([Action])
     case none
     case error(SendableError)
 
@@ -36,8 +35,6 @@ public enum AsyncOperationResult<Action: Equatable & Sendable>: Equatable, Senda
         switch (lhs, rhs) {
         case let (.action(lhsAction), .action(rhsAction)):
             return lhsAction == rhsAction
-        case let (.actions(lhsActions), .actions(rhsActions)):
-            return lhsActions == rhsActions
         case (.none, .none):
             return true
         case let (.error(lhsError), .error(rhsError)):
