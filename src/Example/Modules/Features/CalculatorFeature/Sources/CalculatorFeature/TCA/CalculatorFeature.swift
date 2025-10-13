@@ -222,7 +222,7 @@ struct CalculatorFeature {
         state.isAutoClearTimerActive = true
         return .run { send in
             // 5초 후에 자동 클리어 실행
-            try await Task.sleep(for: .seconds(5))
+            try await Task.sleep(nanoseconds: 5_000_000_000)
             await send(.autoClearTriggered)
         }
         .cancellable(id: CancelID.autoClearTimer)

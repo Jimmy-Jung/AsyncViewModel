@@ -40,6 +40,7 @@ public extension UIExtension where Self: UIControl {
         return self
     }
 
+    @available(iOS 14.0, *)
     @discardableResult
     func addAction(
         _ action: @escaping ((Self) -> Void),
@@ -55,6 +56,7 @@ public extension UIExtension where Self: UIControl {
         return self
     }
 
+    @available(iOS 14.0, *)
     @discardableResult
     func addAction<T: AnyObject>(
         _ object: T,

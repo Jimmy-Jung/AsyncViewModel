@@ -11,6 +11,7 @@ let project = Project(
             destinations: .iOS,
             product: .app,
             bundleId: "io.tuist.AsyncViewModelExample",
+            deploymentTargets: .iOS("15.0"),
             infoPlist: .extendingDefault(
                 with: [
                     "UILaunchScreen": [
@@ -30,6 +31,7 @@ let project = Project(
             destinations: .iOS,
             product: .unitTests,
             bundleId: "io.tuist.AsyncViewModelExampleTests",
+            deploymentTargets: .iOS("15.0"),
             infoPlist: .default,
             sources: ["AsyncViewModelExample/Tests/**"],
             resources: [],

@@ -2,7 +2,7 @@
 //  ActionButton.swift
 //  DesignSystem
 //
-//  Created by 정준혁 on 2025/08/08
+//  Created by 정준영 on 2025/08/08
 //
 
 import SwiftUI

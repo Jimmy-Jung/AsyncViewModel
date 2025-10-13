@@ -69,6 +69,13 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
     public var effectQueue: [AsyncEffect<Action, CancelID>] = []
     public var actionObserver: ((Action) -> Void)? = nil
     public var isProcessingEffects: Bool = false
+    
+    // MARK: - Logging Properties
+    public var isLoggingEnabled: Bool = true
+    public var logLevel: LogLevel = .info
+    public var stateChangeObserver: ((State, State) -> Void)? = nil
+    public var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? = nil
+    public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
 
     // MARK: - Dependencies
     private let calculatorUseCase: CalculatorUseCaseProtocol
@@ -81,10 +88,17 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
     // MARK: - Initialization
     public init(
         initialState: State = State(),
-        calculatorUseCase: CalculatorUseCaseProtocol = CalculatorUseCase()
+        calculatorUseCase: CalculatorUseCaseProtocol = CalculatorUseCase(),
+        isLoggingEnabled: Bool = true,
+        logLevel: LogLevel = .info
     ) {
         self.state = initialState
         self.calculatorUseCase = calculatorUseCase
+        self.isLoggingEnabled = isLoggingEnabled
+        self.logLevel = logLevel
+        self.stateChangeObserver = nil
+        self.effectObserver = nil
+        self.performanceObserver = nil
     }
 
     // MARK: - AsyncViewModel Protocol Implementation
@@ -111,7 +125,7 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
             return [
                 .cancel(id: CancelID.autoClearTimer),
                 .action(.setTimerActive(false)),
-                .runAction(operation: { [calculatorUseCase] in
+                .run(operation: { [calculatorUseCase] in
                     do {
                         let newState = try calculatorUseCase.inputNumber(
                             digit,
@@ -128,7 +142,7 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
             return [
                 .cancel(id: CancelID.autoClearTimer),
                 .action(.setTimerActive(false)),
-                .runAction(operation: { [calculatorUseCase, currentCalculatorState = state.calculatorState] in
+                .run(operation: { [calculatorUseCase, currentCalculatorState = state.calculatorState] in
                     do {
                         let newState = try calculatorUseCase.setOperation(
                             operation,
@@ -144,7 +158,7 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
         case .calculate:
             return [
                 .action(.setTimerActive(true)),
-                .runAction(operation: { [calculatorUseCase, currentCalculatorState = state.calculatorState] in
+                .run(operation: { [calculatorUseCase, currentCalculatorState = state.calculatorState] in
                     do {
                         let newState = try calculatorUseCase.calculate(
                             currentState: currentCalculatorState
@@ -154,7 +168,7 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
                         return .errorOccurred(SendableError(error))
                     }
                 }),
-                .runAction(
+                .run(
                     id: CancelID.autoClearTimer,
                     operation: {
                         try await Task.sleep(nanoseconds: 5_000_000_000) // 5초
@@ -205,7 +219,7 @@ public final class CalculatorAsyncViewModel: AsyncViewModel {
         }
     }
     
-    public func handleError(_ error: Error) {
-        perform(.errorOccurred(SendableError(error)))
+    public func handleError(_ error: SendableError) {
+        perform(.errorOccurred(error))
     }
 }
