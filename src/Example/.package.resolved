@@ -1,15 +1,6 @@
 {
-  "originHash" : "dbf6b44ea44939b2747239e18677416102bab9195cc363859d6963c9ed4a0ded",
+  "originHash" : "a51c2ada449c109a25d558f0e753d5eee86053cde2e3f95e449cfe204cc87b96",
   "pins" : [
-    {
-      "identity" : "alamofire",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Alamofire/Alamofire.git",
-      "state" : {
-        "revision" : "513364f870f6bfc468f9d2ff0a95caccc10044c5",
-        "version" : "5.10.2"
-      }
-    },
     {
       "identity" : "combine-schedulers",
       "kind" : "remoteSourceControl",
@@ -38,30 +29,12 @@
       }
     },
     {
-      "identity" : "moya",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Moya/Moya.git",
-      "state" : {
-        "revision" : "c263811c1f3dbf002be9bd83107f7cdc38992b26",
-        "version" : "15.0.3"
-      }
-    },
-    {
       "identity" : "pinlayout",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/layoutBox/PinLayout.git",
       "state" : {
         "revision" : "72f5300042618340df21500f6c4ce71bb78b93e1",
         "version" : "1.10.6"
-      }
-    },
-    {
-      "identity" : "reactiveswift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ReactiveCocoa/ReactiveSwift.git",
-      "state" : {
-        "revision" : "c43bae3dac73fdd3cb906bd5a1914686ca71ed3c",
-        "version" : "6.7.0"
       }
     },
     {
