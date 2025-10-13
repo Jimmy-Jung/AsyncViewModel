@@ -195,7 +195,7 @@ extension AsyncViewModel {
                 tasks[id]?.cancel()
                 tasks[id] = nil
             }
-
+                
             let task = Task {
                 let operationStartTime = CFAbsoluteTimeGetCurrent()
                 let result = await operation()
@@ -239,7 +239,11 @@ extension AsyncViewModel {
                     case .none:
                         break
                     case .error(let error):
-                        self.handleError(error)
+                        self.logError(error)
+                        // CancellationError는 사용자에게 알림을 표시하지 않음
+                        if !error.isCancellationError {
+                            self.handleError(error)
+                        }
                     }
                 }
             }
@@ -259,12 +263,6 @@ extension AsyncViewModel {
             logEffect(.cancel(id: id))
             tasks[id]?.cancel()
             tasks[id] = nil
-
-        case .merge(let effects):
-            logEffect(.merge(effects))
-            for effect in effects {
-                await handleEffect(effect)
-            }
 
         case .concurrent(let effects):
             logEffect(.concurrent(effects))
@@ -337,7 +335,11 @@ extension AsyncViewModel {
                             case .none:
                                 break
                             case .error(let error):
-                                handleError(error)
+                                logError(error)
+                                // CancellationError는 사용자에게 알림을 표시하지 않음
+                                if !error.isCancellationError {
+                                    handleError(error)
+                                }
                             }
                         }
 
@@ -356,9 +358,9 @@ extension AsyncViewModel {
 
     /// 에러 처리를 위한 기본 구현
     public func handleError(_ error: SendableError) {
-
-        // 로깅 시스템에 에러 전달
-        logError(error)
+        // 기본적으로는 아무것도 하지 않음
+        // 에러 로깅은 handleEffect에서 이미 처리됨
+        // 구체적인 ViewModel에서 필요에 따라 오버라이드하여 구현
     }
 
     // MARK: - Logging Helpers

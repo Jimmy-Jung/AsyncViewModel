@@ -48,6 +48,9 @@ public struct SendableError: Error, Sendable, Equatable {
     }
 
     public var isCancellationError: Bool {
-        domain == NSURLErrorDomain && code == NSURLErrorCancelled
+        // NSURLErrorCancelled 체크
+        domain == NSURLErrorDomain && code == NSURLErrorCancelled ||
+        // Swift.CancellationError 체크
+        domain == "Swift.CancellationError" && code == 1
     }
 }

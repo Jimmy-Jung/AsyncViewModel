@@ -75,22 +75,6 @@ public enum AsyncEffect<Action: Equatable & Sendable, CancelID: Hashable & Senda
     /// - Note: 취소된 작업은 자동으로 tasks 딕셔너리에서 제거됩니다.
     case cancel(id: CancelID)
     
-    /// 여러 Effect를 직렬로(순차적으로) 병합합니다.
-    ///
-    /// Effect들이 하나씩 차례대로 실행됩니다. 앞의 Effect가 완료되어야 다음 Effect가 시작됩니다.
-    ///
-    /// 사용 예시:
-    /// ```swift
-    /// case .setupProcess:
-    ///     return .merge([
-    ///         .action(.validateInput),      // 1️⃣ 먼저
-    ///         .action(.prepareResources),   // 2️⃣ 그 다음
-    ///         .action(.startProcess)        // 3️⃣ 마지막
-    ///     ])
-    /// ```
-    ///
-    /// - Note: 가변 인자 버전인 `.merge(_:)` 편의 메서드를 사용하면 더 간편합니다.
-    case merge([AsyncEffect<Action, CancelID>])
     
     /// 여러 Effect를 병렬로 실행합니다.
     ///
@@ -114,7 +98,7 @@ public enum AsyncEffect<Action: Equatable & Sendable, CancelID: Hashable & Senda
     /// // 병렬: max(500ms, 300ms, 200ms) = 500ms ⚡
     /// ```
     ///
-    /// - Important: 독립적인 작업만 병렬로 실행하세요. 순서가 중요한 작업은 `.merge()`를 사용하세요.
+    /// - Important: 독립적인 작업만 병렬로 실행하세요. 순서가 중요한 작업은 배열로 순차 실행하세요.
     /// - Note: 가변 인자 버전인 `.concurrent(_:)` 편의 메서드를 사용하면 더 간편합니다.
     case concurrent([AsyncEffect<Action, CancelID>])
 
@@ -128,8 +112,6 @@ public enum AsyncEffect<Action: Equatable & Sendable, CancelID: Hashable & Senda
             return lhsId == rhsId
         case let (.cancel(lhsId), .cancel(rhsId)):
             return lhsId == rhsId
-        case let (.merge(lhsEffects), .merge(rhsEffects)):
-            return lhsEffects == rhsEffects
         case let (.concurrent(lhsEffects), .concurrent(rhsEffects)):
             return lhsEffects == rhsEffects
         default:
@@ -143,24 +125,6 @@ public enum AsyncEffect<Action: Equatable & Sendable, CancelID: Hashable & Senda
 public extension AsyncEffect {
     // MARK: - Basic Convenience Methods
     
-    /// 여러 Effect를 직렬로 병합하는 편의 메서드 (가변 인자 버전)
-    ///
-    /// 배열 대신 가변 인자를 사용하여 더 간결한 문법을 제공합니다.
-    ///
-    /// - Parameter effects: 순차적으로 실행할 Effect들
-    /// - Returns: 병합된 Effect
-    ///
-    /// 사용 예시:
-    /// ```swift
-    /// // Before (배열 사용)
-    /// return .merge([.action(.step1), .action(.step2)])
-    ///
-    /// // After (가변 인자)
-    /// return .merge(.action(.step1), .action(.step2))
-    /// ```
-    static func merge(_ effects: AsyncEffect<Action, CancelID>...) -> AsyncEffect<Action, CancelID> {
-        return .merge(effects)
-    }
     
     /// 여러 Effect를 병렬로 실행하는 편의 메서드 (가변 인자 버전)
     ///
