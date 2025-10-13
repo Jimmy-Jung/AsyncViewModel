@@ -447,11 +447,11 @@ case .loadData:
 
 ```swift
 case .orderFood:
-    return .merge([
+    return [
         .action(.checkPayment),      // 1️⃣ 먼저
         .action(.prepareIngredients), // 2️⃣ 그 다음
         .action(.startCooking)        // 3️⃣ 마지막
-    ])
+    ]
 ```
 
 **비유**: 요리 순서 - 재료 확인 → 손질 → 조리
@@ -912,30 +912,17 @@ case .loadDashboard:
 - 관련된 여러 작업의 결과를 한 번에 처리
 - 순차적인 액션 발행이 필요할 때
 
-##### `.merge()` - 가변 인자 버전 🔗
+##### 순차 실행 - 배열 사용 🔗
 
-여러 Effect를 간편하게 병합합니다.
+여러 Effect를 간편하게 순차 실행합니다.
 
+**순차 실행 방법**:
 ```swift
-static func merge(_ effects: AsyncEffect<Action, CancelID>...) -> AsyncEffect<Action, CancelID>
-```
-
-**Before (배열 사용)**:
-```swift
-return .merge([
+return [
     .action(.step1),
     .action(.step2),
     .action(.step3)
-])
-```
-
-**After (가변 인자)**:
-```swift
-return .merge(
-    .action(.step1),
-    .action(.step2),
-    .action(.step3)
-)
+]
 ```
 
 ##### `.concurrent()` - 가변 인자 버전 ⚡
@@ -1207,7 +1194,7 @@ Throttle (일정 간격으로 실행):
 | `.sleepThen()` | 대기 후 액션 | - | 단일 액션 |
 | `.debounce()` | 입력 완료 대기 | 자동 | 단일 액션 |
 | `.throttle()` | 호출 빈도 제한 | 자동 | 단일 액션 |
-| `.merge()` | 순차 실행 (가변 인자) | - | 복합 |
+| 순차 실행 | 배열 사용 | - | 복합 |
 | `.concurrent()` | 병렬 실행 (가변 인자) | - | 복합 |
 
 #### 5.5 실전 조합 예시 🎨
