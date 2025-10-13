@@ -18,7 +18,7 @@ let package = Package(
     dependencies: [
         .package(path: "../../Cores/DesignSystem"),
         .package(path: "../../Cores/LocalStorage"),
-        .package(path: "../../Cores/Network"),
+//        .package(path: "../../Cores/Network"),
         .package(path: "../../Cores/Foundation+Extension"),
         .package(path: "../../Cores/UI+Extension"),
         .package(path: "../../../../AsyncViewModel"),
@@ -40,7 +40,7 @@ let package = Package(
             dependencies: [
                 .product(name: "DesignSystem", package: "DesignSystem"),
                 .product(name: "LocalStorage", package: "LocalStorage"),
-                .product(name: "Network", package: "Network"),
+//                .product(name: "Network", package: "Network"),
                 .product(name: "Foundation+Extension", package: "Foundation+Extension"),
                 .product(name: "UI+Extension", package: "UI+Extension"),
                 "AsyncViewModel",
