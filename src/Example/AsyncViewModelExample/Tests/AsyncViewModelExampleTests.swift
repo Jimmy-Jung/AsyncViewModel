@@ -1,6 +1,6 @@
 import XCTest
 import Combine
-@testable import AsyncViewModel
+@testable import AsyncViewModelKit
 @testable import AsyncViewModelExample
 
 @MainActor
