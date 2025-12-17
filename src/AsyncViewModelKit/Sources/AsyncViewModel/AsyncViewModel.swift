@@ -27,14 +27,14 @@ public enum LogLevel: Int, CaseIterable, Sendable {
     }
 }
 
-// MARK: - AsyncViewModel Protocol
+// MARK: - AsyncViewModelProtocol
 
 /// 개선된 비동기 작업을 처리하는 ViewModel 프로토콜
 ///
 /// 단방향 데이터 흐름을 위한 비동기 방식의 ViewModel입니다.
 /// Input -> Action -> Reduce -> State 업데이트 + Effect 흐름으로 데이터가 처리됩니다.
 @MainActor
-public protocol AsyncViewModel: ObservableObject {
+public protocol AsyncViewModelProtocol: ObservableObject {
     associatedtype Input: Sendable
     associatedtype Action: Equatable & Sendable
     associatedtype State: Equatable & Sendable
@@ -89,7 +89,7 @@ public protocol AsyncViewModel: ObservableObject {
 
 // MARK: - Default Implementation
 
-extension AsyncViewModel {
+extension AsyncViewModelProtocol {
     /// 입력을 처리하는 개선된 메서드
     public func send(_ input: Input) {
         let actions = transform(input)

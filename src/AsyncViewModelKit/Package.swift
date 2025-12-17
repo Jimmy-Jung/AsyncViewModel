@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "AsyncViewModel",
+    name: "AsyncViewModelKit",
     platforms: [
         .iOS(.v15),
         .macOS(.v12),
@@ -13,19 +13,21 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "AsyncViewModel",
-            targets: ["AsyncViewModel"]
+            name: "AsyncViewModelKit",
+            targets: ["AsyncViewModelKit"]
         ),
     ],
     dependencies: [],
     targets: [
         .target(
-            name: "AsyncViewModel",
-            dependencies: []
+            name: "AsyncViewModelKit",
+            dependencies: [],
+            path: "Sources/AsyncViewModel"
         ),
         .testTarget(
-            name: "AsyncViewModelTests",
-            dependencies: ["AsyncViewModel"]
+            name: "AsyncViewModelKitTests",
+            dependencies: ["AsyncViewModelKit"],
+            path: "Tests/AsyncViewModelTests"
         ),
     ]
 )

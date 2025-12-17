@@ -23,7 +23,7 @@ import Foundation
 /// **중요**: 테스트 완료 후 `cleanup()`을 호출하여 observer를 복원하는 것을 권장합니다.
 @available(macOS 10.15, *)
 @MainActor
-public class AsyncTestStore<ViewModel: AsyncViewModel> {
+public class AsyncTestStore<ViewModel: AsyncViewModelProtocol> {
     public let viewModel: ViewModel
     private var receivedActions: [ViewModel.Action] = []
     private var originalObserver: ((ViewModel.Action) -> Void)?
