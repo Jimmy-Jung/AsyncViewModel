@@ -199,6 +199,33 @@ dependencies: [
 2. URL 입력
 3. Add Package
 
+### Tuist 프로젝트
+
+이 프로젝트는 Tuist를 사용하여 완전히 모듈화되어 있습니다.
+
+```bash
+# 1. Tuist 설치 (최초 1회)
+curl -Ls https://install.tuist.io | bash
+
+# 2. 프로젝트 설정
+make setup
+
+# 또는 수동으로:
+tuist install   # 외부 의존성 설치
+tuist generate  # Xcode 프로젝트 생성
+open AsyncViewModel.xcworkspace
+```
+
+**주요 명령어**:
+- `make setup` - 최초 설정 (의존성 설치 + 프로젝트 생성)
+- `make generate` - 프로젝트 생성
+- `make build` - 빌드
+- `make test` - 테스트 실행
+- `make clean` - 정리
+- `make graph` - 의존성 그래프 시각화
+
+**자세한 내용**: [Tuist 프로젝트 가이드](README-TUIST.md)
+
 ---
 
 ## 빠른 시작

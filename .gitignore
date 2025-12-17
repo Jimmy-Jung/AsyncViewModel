@@ -26,21 +26,19 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-### Xcode ###
-# Xcode
-#
-# gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
 
+### Xcode ###
 ## User settings
 xcuserdata/
 
-## compatibility with Xcode 8 and earlier (ignoring not required starting Xcode 9)
+## Compatibility with Xcode 8 and earlier
 *.xcscmblueprint
 *.xccheckout
 
-## compatibility with Xcode 3 and earlier (ignoring not required starting Xcode 4)
+## Compatibility with Xcode 3 and earlier
 build/
 DerivedData/
+index-build/
 *.moved-aside
 *.pbxuser
 !default.pbxuser
@@ -51,27 +49,46 @@ DerivedData/
 *.perspectivev3
 !default.perspectivev3
 
-### Xcode Patch ###
+## Xcode Patch
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
 !*.xcworkspace/contents.xcworkspacedata
 /*.gcno
 
-### Projects ###
+
+### Swift Package Manager ###
+.build/
+.swiftpm/
 *.xcodeproj
 *.xcworkspace
 
-### Tuist derived files ###
-graph.dot
+
+### Tuist ###
+# Tuist 생성 파일 (절대 커밋하지 말 것)
+*.xcodeproj
+*.xcworkspace
 Derived/
+graph.dot
+graph.json
 
-### Tuist managed dependencies ###
-Tuist/.build
+# Tuist 캐시
+.tuist-cache/
+*.tuist-cache/
+.tuist-bin/
 
-### Cursor ###
-.cursor/rules
-*.mdc
+# Tuist 의존성
+Tuist/.build/
+Tuist/Dependencies/
+Tuist/Dependencies.lock
 
-### Obsidian ###
+# Tuist 빌드 산출물
+.build/
+
+
+### IDE ###
+# Cursor
+.cursor/
+
+# Obsidian
 .obsidian/
