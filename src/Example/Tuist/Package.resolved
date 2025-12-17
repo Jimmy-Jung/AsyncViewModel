@@ -1,31 +1,22 @@
 {
-  "originHash" : "a51c2ada449c109a25d558f0e753d5eee86053cde2e3f95e449cfe204cc87b96",
+  "originHash" : "01041e96cb75f2ba9b2e36de1ad7a973a52379ab11000e701f210f8a6f8e730d",
   "pins" : [
     {
       "identity" : "combine-schedulers",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/combine-schedulers",
       "state" : {
-        "revision" : "5928286acce13def418ec36d05a001a9641086f2",
-        "version" : "1.0.3"
+        "revision" : "fd16d76fd8b9a976d88bfb6cacc05ca8d19c91b6",
+        "version" : "1.1.0"
       }
     },
     {
-      "identity" : "combinecocoa",
+      "identity" : "opencombine",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/CombineCommunity/CombineCocoa.git",
+      "location" : "https://github.com/OpenCombine/OpenCombine.git",
       "state" : {
-        "revision" : "7300c75ff9e072aa7fd0fccefcc88f74aae9bf56",
-        "version" : "0.4.1"
-      }
-    },
-    {
-      "identity" : "flexlayout",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/layoutBox/FlexLayout.git",
-      "state" : {
-        "revision" : "45b4e7cbcc9f35c05112860f4eb897aae4f5011c",
-        "version" : "2.2.2"
+        "revision" : "8576f0d579b27020beccbccc3ea6844f3ddfc2c2",
+        "version" : "0.14.0"
       }
     },
     {
@@ -51,26 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ReactiveX/RxSwift.git",
       "state" : {
-        "revision" : "5dd1907d64f0d36f158f61a466bab75067224893",
-        "version" : "6.9.0"
-      }
-    },
-    {
-      "identity" : "snapkit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SnapKit/SnapKit.git",
-      "state" : {
-        "revision" : "2842e6e84e82eb9a8dac0100ca90d9444b0307f4",
-        "version" : "5.7.1"
-      }
-    },
-    {
-      "identity" : "starscream",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/daltoniam/Starscream.git",
-      "state" : {
-        "revision" : "c6bfd1af48efcc9a9ad203665db12375ba6b145a",
-        "version" : "4.0.8"
+        "revision" : "5004a18539bd68905c5939aa893075f578f4f03d",
+        "version" : "6.9.1"
       }
     },
     {
@@ -105,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-composable-architecture.git",
       "state" : {
-        "revision" : "2d60d4082dfb4978974307acf0f00dfa20e5f621",
-        "version" : "1.22.3"
+        "revision" : "5b0890fabfd68a2d375d68502bc3f54a8548c494",
+        "version" : "1.23.1"
       }
     },
     {
@@ -150,8 +123,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-navigation",
       "state" : {
-        "revision" : "91415670c91d41e8e1872ef6fe1bf118e20dee37",
-        "version" : "2.5.1"
+        "revision" : "bf498690e1f6b4af790260f542e8428a4ba10d78",
+        "version" : "2.6.0"
       }
     },
     {
@@ -159,8 +132,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-perception",
       "state" : {
-        "revision" : "30721accd0370d7c9cb5bd0f7cdf5a1a767b383d",
-        "version" : "2.0.8"
+        "revision" : "4f47ebafed5f0b0172cf5c661454fa8e28fb2ac4",
+        "version" : "2.0.9"
       }
     },
     {
@@ -175,19 +148,10 @@
     {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
       "state" : {
-        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
-        "version" : "602.0.0"
-      }
-    },
-    {
-      "identity" : "then",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/devxoul/Then",
-      "state" : {
-        "revision" : "d41ef523faef0f911369f79c0b96815d9dbb6d7a",
-        "version" : "3.0.0"
+        "revision" : "0687f71944021d616d34d922343dcef086855920",
+        "version" : "600.0.1"
       }
     },
     {
@@ -204,17 +168,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/xctest-dynamic-overlay",
       "state" : {
-        "revision" : "4c27acf5394b645b70d8ba19dc249c0472d5f618",
-        "version" : "1.7.0"
-      }
-    },
-    {
-      "identity" : "yoga",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/facebook/yoga.git",
-      "state" : {
-        "revision" : "042f5013152eb81c1552dec945b88f7b95ca350f",
-        "version" : "3.2.1"
+        "revision" : "31073495cae9caf243c440eac94b3ab067e3d7bc",
+        "version" : "1.8.0"
       }
     }
   ],

@@ -1,3 +1,9 @@
 import ProjectDescription
 
-let tuist = Tuist(project: .tuist())
+let config = Config(
+    compatibleXcodeVersions: .all,
+    swiftVersion: "6.0",
+    generationOptions: .options(
+        disableSandbox: true
+    )
+)

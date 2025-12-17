@@ -1,10 +1,8 @@
 import ProjectDescription
+import ProjectDescriptionHelpers
 
 let project = Project(
     name: "AsyncViewModelExample",
-    packages: [
-        .local(path: "Modules/Features/CalculatorFeature"),
-    ],
     targets: [
         .target(
             name: "AsyncViewModelExample",
@@ -14,17 +12,35 @@ let project = Project(
             deploymentTargets: .iOS("15.0"),
             infoPlist: .extendingDefault(
                 with: [
-                    "UILaunchScreen": [
-                        "UIColorName": "",
-                        "UIImageName": "",
+                    "UILaunchStoryboardName": "LaunchScreen",
+                    "UIApplicationSceneManifest": [
+                        "UIApplicationSupportsMultipleScenes": false,
+                        "UISceneConfigurations": [
+                            "UIWindowSceneSessionRoleApplication": [
+                                [
+                                    "UISceneConfigurationName": "Default Configuration",
+                                    "UISceneDelegateClassName": "$(PRODUCT_MODULE_NAME).SceneDelegate",
+                                ]
+                            ]
+                        ]
                     ],
                 ]
             ),
             sources: ["AsyncViewModelExample/Sources/**"],
             resources: ["AsyncViewModelExample/Resources/**"],
             dependencies: [
-                .package(product: "CalculatorFeature"),
-            ]
+                // AsyncViewModel
+                .external(name: "AsyncViewModelKit"),
+                .external(name: "AsyncViewModelMacros"),
+                
+                // External Dependencies
+                .External.reactorKit,
+                .External.rxSwift,
+                .External.rxCocoa,
+                .External.composableArchitecture,
+                .External.pinLayout,
+            ],
+            settings: .appSettings()
         ),
         .target(
             name: "AsyncViewModelExampleTests",
@@ -35,7 +51,18 @@ let project = Project(
             infoPlist: .default,
             sources: ["AsyncViewModelExample/Tests/**"],
             resources: [],
-            dependencies: [.target(name: "AsyncViewModelExample")]
+            dependencies: [
+                .target(name: "AsyncViewModelExample")
+            ],
+            settings: .targetSettings()
         ),
+    ],
+    schemes: [
+        .appScheme(
+            name: "AsyncViewModelExample",
+            testTargets: [
+                .testableTarget(target: .target("AsyncViewModelExampleTests"))
+            ]
+        )
     ]
 )
