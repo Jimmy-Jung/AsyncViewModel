@@ -351,9 +351,12 @@ struct AsyncViewModelTests {
         testStore.send(MockViewModel.Input.triggerMergedEffects)
 
         // Then
-        try await testStore.wait(for: { $0.asyncResult == "Merged Success" })
+        // setValue(400) → [.action(.subsequentAction), .run { .asyncTaskCompleted("Sequential Success") }]
+        // .subsequentAction → currentValue = 999
+        // .asyncTaskCompleted("Sequential Success") → asyncResult = "Sequential Success"
+        try await testStore.wait(for: { $0.asyncResult == "Sequential Success" })
         #expect(testStore.state.currentValue == 999)
-        #expect(testStore.state.asyncResult == "Merged Success")
+        #expect(testStore.state.asyncResult == "Sequential Success")
     }
 
     @Test("동일 ID로 재시작 시 이전 작업이 취소되어야 한다")

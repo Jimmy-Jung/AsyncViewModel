@@ -47,10 +47,13 @@ public struct SendableError: Error, Sendable, Equatable {
         self.userInfo = userInfo
     }
 
+    /// 취소 에러 여부를 확인합니다.
+    ///
+    /// 다음 두 가지 경우를 취소 에러로 판단합니다:
+    /// - NSURLErrorCancelled (네트워크 요청 취소)
+    /// - Swift.CancellationError (Task 취소)
     public var isCancellationError: Bool {
-        // NSURLErrorCancelled 체크
-        domain == NSURLErrorDomain && code == NSURLErrorCancelled ||
-        // Swift.CancellationError 체크
-        domain == "Swift.CancellationError" && code == 1
+        (domain == NSURLErrorDomain && code == NSURLErrorCancelled) ||
+        (domain == "Swift.CancellationError" && code == 1)
     }
 }

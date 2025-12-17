@@ -165,195 +165,191 @@ extension AsyncViewModel {
         switch effect {
         case .none:
             break
-
         case .action(let action):
-            // 재귀적으로 perform을 호출하지 않고, 현재 처리 루프에 통합하여 평탄화
-            logAction(action, level: .debug)  // Effect에서 발생한 액션은 debug 레벨
-            actionObserver?(action)
-
-            // 상태 변경 전 상태 저장
-            let oldState = state
-
-            let newEffects = reduce(state: &state, action: action)
-
-            // 상태 변경 로깅
-            if oldState != state {
-                logStateChange(from: oldState, to: state)
-            }
-
-            // 새 이펙트를 큐의 끝에 추가하여 FIFO 순서 보장 (너비 우선)
-            effectQueue.append(contentsOf: newEffects)
-
-            // 새 Effect 로깅
-            for newEffect in newEffects {
-                logEffect(newEffect)
-            }
-
+            processActionEffect(action)
         case .run(let id, let operation):
-            // 기존 작업이 있다면 취소하고 즉시 제거하여 경쟁 조건 방지
-            if let id = id {
-                tasks[id]?.cancel()
-                tasks[id] = nil
-            }
-                
-            let task = Task {
-                let operationStartTime = CFAbsoluteTimeGetCurrent()
-                let result = await operation()
-                let operationDuration =
-                    CFAbsoluteTimeGetCurrent() - operationStartTime
-
-                logPerformance(
-                    "Effect operation",
-                    duration: operationDuration,
-                    level: .debug
-                )
-
-                await MainActor.run { [weak self] in
-                    guard let self else { return }
-                    switch result {
-                    case .action(let action):
-                        // 결과 액션도 현재 루프에 통합
-                        logAction(action, level: .debug)
-                        self.actionObserver?(action)
-
-                        let oldState = self.state
-                        let effects = self.reduce(
-                            state: &self.state,
-                            action: action
-                        )
-                        if oldState != self.state {
-                            logStateChange(from: oldState, to: self.state)
-                        }
-                        self.effectQueue.append(contentsOf: effects)
-
-                        for effect in effects {
-                            logEffect(effect)
-                        }
-
-                        // 새로 추가된 효과들을 즉시 처리 (현재 처리 중이 아닐 때만)
-                        if !self.isProcessingEffects {
-                            Task {
-                                await self.processNextEffect()
-                            }
-                        }
-                    case .none:
-                        break
-                    case .error(let error):
-                        self.logError(error)
-                        // CancellationError는 사용자에게 알림을 표시하지 않음
-                        if !error.isCancellationError {
-                            self.handleError(error)
-                        }
-                    }
-                }
-            }
-
-            if let id = id {
-                tasks[id] = task
-
-                Task {
-                    await task.value
-                    await MainActor.run { [weak self] in
-                        self?.tasks[id] = nil
-                    }
-                }
-            }
-
+            await processRunEffect(id: id, operation: operation)
         case .cancel(let id):
-            logEffect(.cancel(id: id))
-            tasks[id]?.cancel()
-            tasks[id] = nil
-
+            processCancelEffect(id: id)
         case .concurrent(let effects):
-            logEffect(.concurrent(effects))
+            await processConcurrentEffect(effects)
+        }
 
-            // 진정한 병렬 처리: .run의 operation들을 백그라운드에서 병렬 실행합니다.
-            //
-            // 처리 전략:
-            // 1. .run 효과들의 operation은 병렬로 실행 (백그라운드 스레드)
-            // 2. 모든 operation 결과를 수집한 후 MainActor에서 순차 처리
-            // 3. 비-.run 효과들(.action, .cancel 등)은 순차 처리
-            //
-            // 장점:
-            // - 네트워크/DB 등 비동기 작업이 진짜 병렬로 실행됨
-            // - 상태 변경은 MainActor에서 안전하게 직렬화됨
-            await withTaskGroup(
-                of: (index: Int, result: AsyncOperationResult<Action>?).self
-            ) { group in
-                // .run 효과들을 병렬로 실행
-                for (index, effect) in effects.enumerated() {
-                    if case .run(_, let operation) = effect {
-                        group.addTask {
-                            let result = await operation()
-                            return (index, result)
-                        }
-                    }
-                }
+        let duration = CFAbsoluteTimeGetCurrent() - startTime
+        logPerformance("Effect handling", duration: duration, level: .debug)
+    }
 
-                // 모든 operation 결과 수집
-                var results:
-                    [(index: Int, result: AsyncOperationResult<Action>)] = []
-                for await (index, result) in group {
-                    if let result = result {
-                        results.append((index, result))
-                    }
-                }
+    // MARK: - Effect Processing Helpers
 
-                // MainActor에서 결과들과 다른 효과들을 순차 처리
-                for (index, effect) in effects.enumerated() {
-                    switch effect {
-                    case .run(let id, _):
-                        // operation 결과 찾기
-                        if let operationResult = results.first(where: {
-                            $0.index == index
-                        })?.result {
-                            // 기존 task 취소 및 제거
-                            if let id = id {
-                                tasks[id]?.cancel()
-                                tasks[id] = nil
-                            }
+    /// 액션 Effect를 처리합니다.
+    ///
+    /// 재귀적으로 perform을 호출하지 않고, 현재 처리 루프에 통합하여 평탄화합니다.
+    private func processActionEffect(_ action: Action) {
+        logAction(action, level: .debug)
+        actionObserver?(action)
 
-                            // 결과 처리 (operation은 이미 실행됨)
-                            switch operationResult {
-                            case .action(let action):
-                                logAction(action, level: .debug)
-                                actionObserver?(action)
+        let oldState = state
+        let newEffects = reduce(state: &state, action: action)
 
-                                let oldState = state
-                                let newEffects = reduce(
-                                    state: &state,
-                                    action: action
-                                )
-                                if oldState != state {
-                                    logStateChange(from: oldState, to: state)
-                                }
-                                effectQueue.append(contentsOf: newEffects)
+        if oldState != state {
+            logStateChange(from: oldState, to: state)
+        }
 
-                                for effect in newEffects {
-                                    logEffect(effect)
-                                }
-                            case .none:
-                                break
-                            case .error(let error):
-                                logError(error)
-                                // CancellationError는 사용자에게 알림을 표시하지 않음
-                                if !error.isCancellationError {
-                                    handleError(error)
-                                }
-                            }
-                        }
+        effectQueue.append(contentsOf: newEffects)
+        logEffects(newEffects)
+    }
 
-                    default:
-                        // 비-.run 효과들은 순차 처리
-                        await handleEffect(effect)
-                    }
-                }
+    /// 비동기 작업 Effect를 처리합니다.
+    private func processRunEffect(
+        id: CancelID?,
+        operation: AsyncOperation<Action>
+    ) async {
+        cancelExistingTask(id: id)
+
+        let task = Task {
+            let result = await measureOperation(operation)
+            await MainActor.run { [weak self] in
+                self?.handleOperationResult(result, shouldTriggerProcessing: true)
             }
         }
 
-        // Effect 처리 시간 로깅 (debug 레벨로 변경하여 기본적으로는 출력되지 않음)
+        registerTask(task, id: id)
+    }
+
+    /// 취소 Effect를 처리합니다.
+    private func processCancelEffect(id: CancelID) {
+        logEffect(.cancel(id: id))
+        tasks[id]?.cancel()
+        tasks[id] = nil
+    }
+
+    /// 병렬 Effect를 처리합니다.
+    ///
+    /// 처리 전략:
+    /// 1. .run 효과들의 operation은 병렬로 실행 (백그라운드 스레드)
+    /// 2. 모든 operation 결과를 수집한 후 MainActor에서 순차 처리
+    /// 3. 비-.run 효과들(.action, .cancel 등)은 순차 처리
+    private func processConcurrentEffect(
+        _ effects: [AsyncEffect<Action, CancelID>]
+    ) async {
+        logEffect(.concurrent(effects))
+
+        let results = await executeParallelOperations(effects)
+        await processParallelResults(effects: effects, results: results)
+    }
+
+    // MARK: - Operation Helpers
+
+    /// 기존 작업이 있다면 취소하고 제거합니다.
+    private func cancelExistingTask(id: CancelID?) {
+        guard let id = id else { return }
+        tasks[id]?.cancel()
+        tasks[id] = nil
+    }
+
+    /// 작업을 실행하고 성능을 측정합니다.
+    private func measureOperation(
+        _ operation: AsyncOperation<Action>
+    ) async -> AsyncOperationResult<Action> {
+        let startTime = CFAbsoluteTimeGetCurrent()
+        let result = await operation()
         let duration = CFAbsoluteTimeGetCurrent() - startTime
-        logPerformance("Effect handling", duration: duration, level: .debug)
+        logPerformance("Effect operation", duration: duration, level: .debug)
+        return result
+    }
+
+    /// Task를 등록하고 완료 시 정리합니다.
+    private func registerTask(_ task: Task<Void, Never>, id: CancelID?) {
+        guard let id = id else { return }
+        tasks[id] = task
+
+        Task {
+            await task.value
+            await MainActor.run { [weak self] in
+                self?.tasks[id] = nil
+            }
+        }
+    }
+
+    /// 작업 결과를 처리합니다.
+    ///
+    /// - Parameters:
+    ///   - result: 비동기 작업의 결과
+    ///   - shouldTriggerProcessing: true이면 새 Effect 추가 시 처리를 시작합니다
+    private func handleOperationResult(
+        _ result: AsyncOperationResult<Action>,
+        shouldTriggerProcessing: Bool = false
+    ) {
+        switch result {
+        case .action(let action):
+            processActionEffect(action)
+
+            if shouldTriggerProcessing && !isProcessingEffects {
+                Task {
+                    await processNextEffect()
+                }
+            }
+        case .none:
+            break
+        case .error(let error):
+            logError(error)
+            if !error.isCancellationError {
+                handleError(error)
+            }
+        }
+    }
+
+    /// Effect 배열을 로깅합니다.
+    private func logEffects(_ effects: [AsyncEffect<Action, CancelID>]) {
+        for effect in effects {
+            logEffect(effect)
+        }
+    }
+
+    // MARK: - Concurrent Effect Helpers
+
+    /// .run 효과들을 병렬로 실행하고 결과를 수집합니다.
+    private func executeParallelOperations(
+        _ effects: [AsyncEffect<Action, CancelID>]
+    ) async -> [(index: Int, result: AsyncOperationResult<Action>)] {
+        await withTaskGroup(
+            of: (index: Int, result: AsyncOperationResult<Action>?).self
+        ) { group in
+            for (index, effect) in effects.enumerated() {
+                if case .run(_, let operation) = effect {
+                    group.addTask {
+                        let result = await operation()
+                        return (index, result)
+                    }
+                }
+            }
+
+            var results: [(index: Int, result: AsyncOperationResult<Action>)] = []
+            for await (index, result) in group {
+                if let result = result {
+                    results.append((index, result))
+                }
+            }
+            return results
+        }
+    }
+
+    /// 병렬 실행 결과를 순차적으로 처리합니다.
+    private func processParallelResults(
+        effects: [AsyncEffect<Action, CancelID>],
+        results: [(index: Int, result: AsyncOperationResult<Action>)]
+    ) async {
+        for (index, effect) in effects.enumerated() {
+            switch effect {
+            case .run(let id, _):
+                if let operationResult = results.first(where: { $0.index == index })?.result {
+                    cancelExistingTask(id: id)
+                    handleOperationResult(operationResult)
+                }
+            default:
+                await handleEffect(effect)
+            }
+        }
     }
 
     /// 에러 처리를 위한 기본 구현
@@ -451,8 +447,6 @@ extension AsyncViewModel {
 
             return result
         case .tuple:
-            return String(describing: value)
-        case .foreignReference:
             return String(describing: value)
         @unknown default:
             return String(describing: value)
