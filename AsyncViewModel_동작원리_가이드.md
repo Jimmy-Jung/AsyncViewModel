@@ -68,8 +68,7 @@ AsyncViewModel/
 ```swift
 import AsyncViewModel  // ✅ 이것만 import!
 
-@AsyncViewModel  // 매크로 사용
-@MainActor
+@AsyncViewModel  // 매크로 사용 - 프로퍼티와 extension에 @MainActor 자동 추가
 final class MyViewModel: ObservableObject {
     // AsyncViewModelProtocol, AsyncEffect 등 모든 타입 사용 가능
 }
@@ -82,8 +81,9 @@ AsyncViewModel은 `@AsyncViewModel` 매크로를 제공하여 보일러플레이
 ### 매크로가 하는 일
 
 1. **9개의 필수 프로퍼티 자동 생성**
-2. **AsyncViewModelProtocol 준수를 위한 extension 생성**
-3. **Extension에 `@MainActor` 자동 추가** - 안전한 동시성 보장
+2. **모든 생성된 프로퍼티에 `@MainActor` 자동 추가**
+3. **AsyncViewModelProtocol 준수를 위한 extension 생성**
+4. **Extension에도 `@MainActor` 자동 추가** - 안전한 동시성 보장
 
 ### 매크로 없이 (수동)
 
@@ -115,12 +115,11 @@ final class MyViewModel: AsyncViewModelProtocol, ObservableObject {
 import AsyncViewModel  // Kit + Macros 한 번에!
 
 @AsyncViewModel  // ✨ 이 한 줄이면 끝!
-@MainActor       // 필수: MainActor를 명시해야 합니다
 final class MyViewModel: ObservableObject {
     @Published var state: State
     
     // 🎉 9개의 프로퍼티가 자동 생성됨!
-    // 🎯 extension에 @MainActor가 자동으로 추가되어 안전한 동시성 보장
+    // 🎯 모든 프로퍼티와 extension에 @MainActor가 자동 추가되어 안전한 동시성 보장
     
     // ... transform, reduce ...
 }
@@ -131,24 +130,23 @@ final class MyViewModel: ObservableObject {
 ```swift
 // 매크로가 다음과 같은 코드를 생성합니다:
 
-@MainActor
 final class MyViewModel: ObservableObject {
     @Published var state: State
     
-    // 매크로가 생성한 프로퍼티들
-    public var tasks: [CancelID: Task<Void, Never>] = [:]
-    public var effectQueue: [AsyncEffect<Action, CancelID>] = []
-    public var isProcessingEffects: Bool = false
-    public var actionObserver: ((Action) -> Void)? = nil
-    public var isLoggingEnabled: Bool = true
-    public var logLevel: LogLevel = .info
-    public var stateChangeObserver: ((State, State) -> Void)? = nil
-    public var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? = nil
-    public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
+    // 매크로가 생성한 프로퍼티들 (모두 @MainActor 포함)
+    @MainActor public var tasks: [CancelID: Task<Void, Never>] = [:]
+    @MainActor public var effectQueue: [AsyncEffect<Action, CancelID>] = []
+    @MainActor public var isProcessingEffects: Bool = false
+    @MainActor public var actionObserver: ((Action) -> Void)? = nil
+    @MainActor public var isLoggingEnabled: Bool = true
+    @MainActor public var logLevel: LogLevel = .info
+    @MainActor public var stateChangeObserver: ((State, State) -> Void)? = nil
+    @MainActor public var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? = nil
+    @MainActor public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
 }
 
 // 매크로가 생성한 extension
-@MainActor  // 🎯 자동으로 추가됨!
+@MainActor  // 🎯 extension에도 자동 추가!
 extension MyViewModel: AsyncViewModelProtocol {}
 ```
 
@@ -161,25 +159,24 @@ import AsyncViewModel
 
 // 로깅 활성화 + 디버그 레벨
 @AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
-@MainActor
 final class MyViewModel: ObservableObject {
-    // ...
+    // 매크로가 @MainActor를 모든 프로퍼티와 extension에 자동 추가
 }
 
 // 로깅 비활성화 (프로덕션)
 @AsyncViewModel(isLoggingEnabled: false)
-@MainActor
 final class MyViewModel: ObservableObject {
-    // ...
+    // 프로덕션에서도 @MainActor 안전성 보장
 }
 ```
 
 ### 중요 사항
 
-> ⚠️ **Swift 매크로의 제약**
-> - 클래스 자체에는 여전히 `@MainActor`를 수동으로 작성해야 합니다
-> - 매크로가 생성하는 extension에는 `@MainActor`가 자동으로 추가됩니다
-> - 이를 통해 프로토콜 요구사항의 모든 메서드가 MainActor에서 안전하게 실행됩니다
+> 💡 **@MainActor 자동 처리**
+> - 매크로가 **모든 생성된 프로퍼티**에 `@MainActor`를 자동으로 추가합니다
+> - **생성된 extension**에도 `@MainActor`가 자동으로 추가됩니다
+> - 따라서 클래스에 별도로 `@MainActor`를 명시할 필요가 없습니다
+> - 모든 프로토콜 메서드가 안전하게 MainActor에서 실행됩니다
 
 
 
@@ -223,8 +220,7 @@ class TraditionalViewModel: ObservableObject {
 // 😊 AsyncViewModel 방식 - 깔끔하고 예측 가능
 import AsyncViewModel
 
-@AsyncViewModel  // 매크로로 보일러플레이트 자동 생성!
-@MainActor       // 필수: MainActor를 명시해야 합니다
+@AsyncViewModel  // 매크로로 보일러플레이트 자동 생성! (@MainActor 포함)
 final class CalculatorAsyncViewModel: ObservableObject {
     @Published var state: State
     
@@ -253,7 +249,7 @@ final class CalculatorAsyncViewModel: ObservableObject {
 }
 ```
 
-> 💡 **`@AsyncViewModel` 매크로**는 9개의 필수 프로퍼티를 자동으로 생성하고, extension에 `@MainActor`를 자동으로 추가하여 안전한 동시성을 보장합니다. 자세한 내용은 [README - 매크로로 간편하게](README.md#매크로로-간편하게) 섹션을 참고하세요.
+> 💡 **`@AsyncViewModel` 매크로**는 9개의 필수 프로퍼티를 자동으로 생성하고, 모든 프로퍼티와 extension에 `@MainActor`를 자동으로 추가하여 안전한 동시성을 보장합니다. 자세한 내용은 [README - 매크로로 간편하게](README.md#매크로로-간편하게) 섹션을 참고하세요.
 
 ## 🏗️ 핵심 구성 요소
 

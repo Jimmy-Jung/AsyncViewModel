@@ -36,7 +36,7 @@
 ```swift
 import AsyncViewModel  // 이 한 줄이면 Kit + Macros 모두 사용 가능!
 
-@AsyncViewModel
+@AsyncViewModel  // ✨ 9개 프로퍼티 + @MainActor 자동 생성!
 final class CounterViewModel: ObservableObject {
     // 1️⃣ 타입 정의
     enum Input {
@@ -84,7 +84,7 @@ final class CounterViewModel: ObservableObject {
 }
 ```
 
-> 💡 **`@AsyncViewModel` 매크로**가 9개의 필수 프로퍼티를 자동으로 생성합니다!  
+> 💡 **`@AsyncViewModel` 매크로**가 9개의 필수 프로퍼티를 자동으로 생성하고, 모든 멤버와 extension에 `@MainActor`를 자동 추가합니다!  
 > 자세한 내용은 [매크로로 간편하게](#매크로로-간편하게) 섹션을 참고하세요.
 
 ### 2. SwiftUI에서 사용
@@ -155,16 +155,17 @@ final class MyViewModel: ObservableObject {
     @Published var state: State
 
     // 🎉 9개의 프로퍼티가 자동 생성됨!
-    // 🎯 모든 멤버에 @MainActor가 자동으로 추가되어 안전한 동시성 보장
+    // 🎯 모든 멤버와 extension에 @MainActor가 자동 추가되어 안전한 동시성 보장
 
     // ... transform, reduce ...
 }
 ```
 
-> 💡 **참고**:
-> - 매크로가 **모든 메서드와 프로퍼티**에 `@MainActor`를 자동으로 추가합니다.
-> - 클래스에 별도로 `@MainActor`를 명시할 필요가 없습니다.
-> - 이를 통해 모든 메서드가 안전하게 MainActor에서 실행됩니다.
+> 💡 **@MainActor 자동 처리**:
+> - 매크로가 **모든 생성된 프로퍼티**에 `@MainActor`를 자동으로 추가합니다
+> - **생성된 extension**에도 `@MainActor`가 자동으로 추가됩니다
+> - 따라서 클래스에 별도로 `@MainActor`를 명시할 필요가 없습니다
+> - 모든 프로토콜 메서드가 안전하게 MainActor에서 실행됩니다
 
 ### 매크로 파라미터
 
@@ -176,13 +177,13 @@ import AsyncViewModel
 // 로깅 활성화 + 디버그 레벨
 @AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
 final class MyViewModel: ObservableObject {
-    // ...
+    // 매크로가 @MainActor를 모든 멤버와 extension에 자동 추가
 }
 
 // 로깅 비활성화 (프로덕션)
 @AsyncViewModel(isLoggingEnabled: false)
 final class MyViewModel: ObservableObject {
-    // ...
+    // 프로덕션에서도 @MainActor 안전성 보장
 }
 ```
 
