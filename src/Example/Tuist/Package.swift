@@ -9,7 +9,7 @@ import PackageDescription
         // .framework: 동적 프레임워크 (개발 시 빠른 빌드)
         // .staticFramework: 정적 프레임워크 (릴리즈 시 최적화)
         productTypes: [
-            "AsyncViewModelKit": .framework,
+            "AsyncViewModel": .framework,  // 로컬 SPM 패키지 (Core + Macros 통합)
             "ReactorKit": .framework,
             "RxSwift": .framework,
             "RxCocoa": .framework,
@@ -29,9 +29,8 @@ import PackageDescription
 let package = Package(
     name: "AsyncViewModelExample",
     dependencies: [
-        // Local Packages
-        .package(path: "../../AsyncViewModelKit"),
-        .package(path: "../../AsyncViewModelMacros"),
+        // Local SPM Packages
+        .package(path: "../../AsyncViewModel"),
         
         // Architecture
         .package(

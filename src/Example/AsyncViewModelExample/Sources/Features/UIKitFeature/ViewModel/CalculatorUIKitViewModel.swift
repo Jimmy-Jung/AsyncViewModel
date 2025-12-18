@@ -5,8 +5,7 @@
 //  Created by 정준영 on 2025/12/17
 //
 
-import AsyncViewModelKit
-import AsyncViewModelMacros
+import AsyncViewModel  // Kit + Macros 한 번에!
 import Foundation
 
 extension CalculatorUIKitViewModel {
@@ -59,12 +58,10 @@ extension CalculatorUIKitViewModel {
 }
 
 @AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
-@MainActor
 public final class CalculatorUIKitViewModel: ObservableObject {
     
     // MARK: - Properties
     @Published public var state: State
-    
     // MARK: - Dependencies
     private let calculatorUseCase: CalculatorUseCaseProtocol
     

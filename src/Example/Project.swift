@@ -29,9 +29,8 @@ let project = Project(
             sources: ["AsyncViewModelExample/Sources/**"],
             resources: ["AsyncViewModelExample/Resources/**"],
             dependencies: [
-                // AsyncViewModel
-                .external(name: "AsyncViewModelKit"),
-                .external(name: "AsyncViewModelMacros"),
+                // AsyncViewModel (로컬 SPM 패키지)
+                .external(name: "AsyncViewModel"),
                 
                 // External Dependencies
                 .External.reactorKit,

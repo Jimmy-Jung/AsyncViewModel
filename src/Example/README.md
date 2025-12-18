@@ -58,11 +58,18 @@ open AsyncViewModel.xcworkspace
 ### ⚡ Makefile 명령어
 
 ```bash
+# 프로젝트 설정
 make setup     # 최초 설정 (의존성 설치 + 프로젝트 생성)
 make generate  # 프로젝트 생성
 make build     # 빌드
-make test      # 테스트 실행
-make cache     # 빌드 시간 80% 단축 (바이너리 캐싱)
+
+# 테스트
+make test         # Example 테스트 실행
+make test-all     # 모든 패키지 테스트 (Core + Macros + Example)
+make test-core    # AsyncViewModel Core 테스트만
+make test-macros  # AsyncViewModelMacros 테스트만
+
+# 기타
 make clean     # 정리
 make graph     # 의존성 그래프 시각화
 ```
