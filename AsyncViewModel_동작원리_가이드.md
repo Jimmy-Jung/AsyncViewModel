@@ -4,6 +4,185 @@
 > 
 > AsyncViewModel은 SwiftUI 앱에서 복잡한 비동기 작업과 상태 관리를 쉽게 처리할 수 있게 해주는 라이브러리입니다. 이 가이드에서는 계산기 앱 예시를 통해 AsyncViewModel이 어떻게 동작하는지 단계별로 알아보겠습니다.
 
+## 📖 목차
+
+- [시작하기 전에](#-시작하기-전에)
+- [매크로로 간편하게](#-매크로로-간편하게)
+- [AsyncViewModel이란?](#-asyncviewmodel이란)
+- [핵심 구성 요소](#-핵심-구성-요소)
+- [데이터 흐름의 마법](#-데이터-흐름의-마법)
+- [계산기 앱 스토리](#-계산기-앱-스토리-5--3--8-계산하기)
+- [Effect 시스템](#-effect-시스템-비동기-작업의-핵심)
+- [실제 동작 과정 상세 분석](#-실제-동작-과정-상세-분석)
+- [isProcessingEffects](#-isprocessingeffects-effect-처리-동기화의-핵심)
+- [고급 기능들](#-고급-기능들)
+- [실제 사용 예시](#-실제-사용-예시-계산기-앱-완전-구현)
+- [초급 개발자를 위한 가이드](#-초급-개발자를-위한-단계별-학습-가이드)
+- [마무리](#-마무리)
+
+## 📚 시작하기 전에
+
+이 가이드를 읽기 전에 [README.md](README.md)의 빠른 시작 섹션을 먼저 읽어보시길 권장합니다.
+
+### Import 방식
+
+```swift
+// ✅ 권장: 통합 모듈 (Core + Macros 포함)
+import AsyncViewModel
+
+// Core만 필요한 경우
+import AsyncViewModelCore
+```
+
+이 가이드의 모든 예제는 통합 모듈(`import AsyncViewModel`)을 사용합니다.
+
+## 📦 패키지 구조
+
+AsyncViewModel은 명확하게 분리된 구조로 이루어져 있습니다:
+
+```
+AsyncViewModel/
+├── Sources/
+│   ├── Core/                          # 내부 코어 모듈
+│   │   ├── AsyncViewModelProtocol.swift   # 핵심 프로토콜
+│   │   ├── AsyncEffect.swift              # Effect 타입
+│   │   ├── AsyncOperation.swift           # Effect 실행 로직
+│   │   ├── AsyncTestStore.swift           # 테스트 도구
+│   │   ├── LogLevel.swift                 # 로깅 레벨
+│   │   └── SendableError.swift            # Error 래퍼
+│   └── AsyncViewModel/                # 공개 통합 모듈
+│       └── AsyncViewModel.swift       # Core + Macros re-export
+└── Tests/
+    └── AsyncViewModelTests/
+```
+
+### 모듈 설명
+
+| 모듈 | 타입 | 용도 |
+|------|------|------|
+| `AsyncViewModelCore` | Internal | 내부 코어 기능 (AsyncViewModelMacros에서 사용) |
+| `AsyncViewModel` | Public | 사용자 진입점 (Core + Macros 통합) |
+
+**사용자는 `AsyncViewModel` 하나만 import하면 모든 기능을 사용할 수 있습니다!**
+
+```swift
+import AsyncViewModel  // ✅ 이것만 import!
+
+@AsyncViewModel  // 매크로 사용
+@MainActor
+final class MyViewModel: ObservableObject {
+    // AsyncViewModelProtocol, AsyncEffect 등 모든 타입 사용 가능
+}
+```
+
+## 🪄 매크로로 간편하게
+
+AsyncViewModel은 `@AsyncViewModel` 매크로를 제공하여 보일러플레이트 코드를 자동으로 생성합니다.
+
+### 매크로가 하는 일
+
+1. **9개의 필수 프로퍼티 자동 생성**
+2. **AsyncViewModelProtocol 준수를 위한 extension 생성**
+3. **Extension에 `@MainActor` 자동 추가** - 안전한 동시성 보장
+
+### 매크로 없이 (수동)
+
+```swift
+import AsyncViewModelCore  // Core 모듈만
+
+@MainActor
+final class MyViewModel: AsyncViewModelProtocol, ObservableObject {
+    @Published var state: State
+    
+    // 😫 9개의 프로퍼티를 수동으로 선언해야 함
+    var tasks: [CancelID: Task<Void, Never>] = [:]
+    var effectQueue: [AsyncEffect<Action, CancelID>] = []
+    var isProcessingEffects = false
+    var actionObserver: ((Action) -> Void)?
+    var isLoggingEnabled = false
+    var logLevel: LogLevel = .info
+    var stateChangeObserver: ((State, State) -> Void)?
+    var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)?
+    var performanceObserver: ((String, TimeInterval) -> Void)?
+    
+    // ... transform, reduce ...
+}
+```
+
+### 매크로 사용 (권장)
+
+```swift
+import AsyncViewModel  // Kit + Macros 한 번에!
+
+@AsyncViewModel  // ✨ 이 한 줄이면 끝!
+@MainActor       // 필수: MainActor를 명시해야 합니다
+final class MyViewModel: ObservableObject {
+    @Published var state: State
+    
+    // 🎉 9개의 프로퍼티가 자동 생성됨!
+    // 🎯 extension에 @MainActor가 자동으로 추가되어 안전한 동시성 보장
+    
+    // ... transform, reduce ...
+}
+```
+
+### 매크로 확장 결과
+
+```swift
+// 매크로가 다음과 같은 코드를 생성합니다:
+
+@MainActor
+final class MyViewModel: ObservableObject {
+    @Published var state: State
+    
+    // 매크로가 생성한 프로퍼티들
+    public var tasks: [CancelID: Task<Void, Never>] = [:]
+    public var effectQueue: [AsyncEffect<Action, CancelID>] = []
+    public var isProcessingEffects: Bool = false
+    public var actionObserver: ((Action) -> Void)? = nil
+    public var isLoggingEnabled: Bool = true
+    public var logLevel: LogLevel = .info
+    public var stateChangeObserver: ((State, State) -> Void)? = nil
+    public var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? = nil
+    public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
+}
+
+// 매크로가 생성한 extension
+@MainActor  // 🎯 자동으로 추가됨!
+extension MyViewModel: AsyncViewModelProtocol {}
+```
+
+### 매크로 파라미터
+
+로깅을 커스터마이징할 수 있습니다:
+
+```swift
+import AsyncViewModel
+
+// 로깅 활성화 + 디버그 레벨
+@AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
+@MainActor
+final class MyViewModel: ObservableObject {
+    // ...
+}
+
+// 로깅 비활성화 (프로덕션)
+@AsyncViewModel(isLoggingEnabled: false)
+@MainActor
+final class MyViewModel: ObservableObject {
+    // ...
+}
+```
+
+### 중요 사항
+
+> ⚠️ **Swift 매크로의 제약**
+> - 클래스 자체에는 여전히 `@MainActor`를 수동으로 작성해야 합니다
+> - 매크로가 생성하는 extension에는 `@MainActor`가 자동으로 추가됩니다
+> - 이를 통해 프로토콜 요구사항의 모든 메서드가 MainActor에서 안전하게 실행됩니다
+
+
+
 ## 🎯 AsyncViewModel이란?
 
 AsyncViewModel은 **단방향 데이터 흐름(Unidirectional Data Flow)**을 기반으로 한 상태 관리 시스템입니다. 
@@ -11,7 +190,10 @@ AsyncViewModel은 **단방향 데이터 흐름(Unidirectional Data Flow)**을 �
 ### 전통적인 방식의 문제점
 ```swift
 // 😰 전통적인 방식 - 복잡하고 예측하기 어려움
-class TraditionalViewModel {
+import Foundation
+import Combine
+
+class TraditionalViewModel: ObservableObject {
     @Published var result: String = "0"
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -39,8 +221,16 @@ class TraditionalViewModel {
 ### AsyncViewModel 방식
 ```swift
 // 😊 AsyncViewModel 방식 - 깔끔하고 예측 가능
-class CalculatorAsyncViewModel: AsyncViewModel {
+import AsyncViewModel
+
+@AsyncViewModel  // 매크로로 보일러플레이트 자동 생성!
+@MainActor       // 필수: MainActor를 명시해야 합니다
+final class CalculatorAsyncViewModel: ObservableObject {
     @Published var state: State
+    
+    init(initialState: State = State()) {
+        self.state = initialState
+    }
     
     func transform(_ input: Input) -> [Action] {
         switch input {
@@ -62,6 +252,8 @@ class CalculatorAsyncViewModel: AsyncViewModel {
     }
 }
 ```
+
+> 💡 **`@AsyncViewModel` 매크로**는 9개의 필수 프로퍼티를 자동으로 생성하고, extension에 `@MainActor`를 자동으로 추가하여 안전한 동시성을 보장합니다. 자세한 내용은 [README - 매크로로 간편하게](README.md#매크로로-간편하게) 섹션을 참고하세요.
 
 ## 🏗️ 핵심 구성 요소
 
@@ -120,34 +312,30 @@ AsyncViewModel의 핵심은 **단방향 데이터 흐름**입니다. 데이터�
 ### 전체 아키텍처 다이어그램
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'lineColor': '#e2e8f0', 'textColor': '#f8fafc'}}}%%
 graph TD
-    A[사용자 입력] --> B[Input]
-    B --> C[transform 함수]
-    C --> D[Action]
-    D --> E[perform 함수]
-    E --> F[reduce 함수]
-    F --> G[State 변경]
-    F --> H[Effect 생성]
-    H --> I[Effect 큐]
-    I --> J[processNextEffect]
-    J --> K[비동기 작업 실행]
-    K --> L[결과 처리]
-    L --> M[새로운 Action]
+    A[👤 사용자 입력]:::user --> B[Input]:::input
+    B --> C[transform 함수]:::func
+    C --> D[Action]:::action
+    D --> E[perform 함수]:::func
+    E --> F[reduce 함수]:::func
+    F --> G[📦 State 변경]:::state
+    F --> H[Effect 생성]:::effect
+    H --> I[Effect 큐]:::queue
+    I --> J[processNextEffect]:::func
+    J --> K[🌐 비동기 작업 실행]:::async
+    K --> L[결과 처리]:::func
+    L --> M[새로운 Action]:::action
     M --> E
     
-    style A fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#ffffff
-    style B fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style C fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style D fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style E fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style F fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style G fill:#166534,stroke:#22c55e,stroke-width:2px,color:#ffffff
-    style H fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style I fill:#92400e,stroke:#f59e0b,stroke-width:2px,color:#ffffff
-    style J fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style K fill:#7c2d12,stroke:#ef4444,stroke-width:2px,color:#ffffff
-    style L fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style M fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
+    classDef user fill:#3b82f6,stroke:#60a5fa,color:#ffffff
+    classDef input fill:#8b5cf6,stroke:#a78bfa,color:#ffffff
+    classDef action fill:#8b5cf6,stroke:#a78bfa,color:#ffffff
+    classDef func fill:#475569,stroke:#94a3b8,color:#ffffff
+    classDef state fill:#10b981,stroke:#34d399,color:#ffffff
+    classDef effect fill:#f59e0b,stroke:#fbbf24,color:#1f2937
+    classDef queue fill:#f59e0b,stroke:#fbbf24,color:#1f2937
+    classDef async fill:#ef4444,stroke:#f87171,color:#ffffff
 ```
 
 ## 📖 계산기 앱 스토리: "5 + 3 = 8" 계산하기
@@ -321,44 +509,42 @@ Effect는 AsyncViewModel의 가장 강력한 기능입니다. 5가지 타입의 
 ### Effect 처리 흐름 다이어그램
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'lineColor': '#e2e8f0', 'textColor': '#f8fafc'}}}%%
 graph TD
-    A[Effect 큐] --> B{큐가 비어있나?}
-    B -->|아니오| C[첫 번째 Effect 가져오기]
-    B -->|예| D[처리 완료]
+    A[📥 Effect 큐]:::queue --> B{큐가 비어있나?}:::decision
+    B -->|아니오| C[첫 번째 Effect 가져오기]:::process
+    B -->|예| D[✅ 처리 완료]:::complete
     
-    C --> E{Effect 타입}
-    E -->|.action| F[Action 실행]
-    E -->|.run| G[비동기 작업 실행]
-    E -->|.cancel| H[작업 취소]
-    E -->|.merge| I[Effect들을 순차 실행]
-    E -->|.concurrent| J[Effect들을 병렬 실행]
+    C --> E{Effect 타입}:::decision
+    E -->|.action| F[⚙️ Action 실행]:::action
+    E -->|.run| G[🌐 비동기 작업 실행]:::async
+    E -->|.cancel| H[❌ 작업 취소]:::cancel
+    E -->|배열| I[📋 순차 실행]:::sequential
+    E -->|.concurrent| J[⚡ 병렬 실행]:::concurrent
     
-    F --> K[새로운 Effect 생성]
-    G --> L[작업 완료 후 결과 처리]
-    H --> M[작업 제거]
-    I --> N[각 Effect 순차 처리]
-    J --> O[모든 Effect 병렬 처리]
+    F --> K[새로운 Effect 생성]:::effect
+    G --> L[작업 완료 후 결과 처리]:::result
+    H --> M[작업 제거]:::remove
+    I --> N[각 Effect 순차 처리]:::process
+    J --> O[모든 Effect 병렬 처리]:::process
     
     K --> A
     L --> K
     N --> A
     O --> A
     
-    style A fill:#92400e,stroke:#f59e0b,stroke-width:2px,color:#ffffff
-    style B fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style C fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style D fill:#166534,stroke:#22c55e,stroke-width:2px,color:#ffffff
-    style E fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style F fill:#1e40af,stroke:#3b82f6,stroke-width:2px,color:#ffffff
-    style G fill:#7c2d12,stroke:#ef4444,stroke-width:2px,color:#ffffff
-    style H fill:#7c2d12,stroke:#ef4444,stroke-width:2px,color:#ffffff
-    style I fill:#92400e,stroke:#f59e0b,stroke-width:2px,color:#ffffff
-    style J fill:#581c87,stroke:#a855f7,stroke-width:2px,color:#ffffff
-    style K fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style L fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style M fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style N fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
-    style O fill:#374151,stroke:#6b7280,stroke-width:2px,color:#ffffff
+    classDef queue fill:#f59e0b,stroke:#fbbf24,color:#1f2937
+    classDef decision fill:#8b5cf6,stroke:#a78bfa,color:#ffffff
+    classDef process fill:#475569,stroke:#94a3b8,color:#ffffff
+    classDef complete fill:#10b981,stroke:#34d399,color:#ffffff
+    classDef action fill:#3b82f6,stroke:#60a5fa,color:#ffffff
+    classDef async fill:#ef4444,stroke:#f87171,color:#ffffff
+    classDef cancel fill:#ef4444,stroke:#f87171,color:#ffffff
+    classDef sequential fill:#f59e0b,stroke:#fbbf24,color:#1f2937
+    classDef concurrent fill:#8b5cf6,stroke:#a78bfa,color:#ffffff
+    classDef effect fill:#475569,stroke:#94a3b8,color:#ffffff
+    classDef result fill:#475569,stroke:#94a3b8,color:#ffffff
+    classDef remove fill:#475569,stroke:#94a3b8,color:#ffffff
 ```
 
 ### 📖 Effect 타입별 상세 설명
@@ -531,20 +717,27 @@ private func processNextEffect() async {
 ### 📊 전체 과정 시각화
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'lineColor': '#e2e8f0', 'textColor': '#f8fafc'}}}%%
 graph TD
-    A["사용자가 5 버튼 클릭"] --> B["viewModel.send number(5)"]
-    B --> C["transform 함수 호출"]
-    C --> D["number(5) → inputNumber(5)"]
-    D --> E["perform 함수 호출"]
-    E --> F["reduce 함수 호출"]
-    F --> G["상태 변경 + Effect 생성"]
-    G --> H["Effect 큐에 추가"]
-    H --> I["processNextEffect 시작"]
-    I --> J["각 Effect 순차 처리"]
-    J --> K["UI 업데이트"]
+    A["👤 사용자가 5 버튼 클릭"]:::user --> B["send(.number(5))"]:::send
+    B --> C["🔄 transform 함수 호출"]:::func
+    C --> D["Input → Action 변환"]:::transform
+    D --> E["⚙️ perform 함수 호출"]:::func
+    E --> F["📝 reduce 함수 호출"]:::func
+    F --> G["📦 상태 변경 + Effect 생성"]:::state
+    G --> H["📥 Effect 큐에 추가"]:::queue
+    H --> I["🔄 processNextEffect 시작"]:::func
+    I --> J["⚡ 각 Effect 순차 처리"]:::process
+    J --> K["📱 UI 업데이트"]:::ui
     
-    style A fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#ffffff
-    style K fill:#166534,stroke:#22c55e,stroke-width:2px,color:#ffffff
+    classDef user fill:#3b82f6,stroke:#60a5fa,color:#ffffff
+    classDef send fill:#8b5cf6,stroke:#a78bfa,color:#ffffff
+    classDef func fill:#475569,stroke:#94a3b8,color:#ffffff
+    classDef transform fill:#8b5cf6,stroke:#a78bfa,color:#ffffff
+    classDef state fill:#10b981,stroke:#34d399,color:#ffffff
+    classDef queue fill:#f59e0b,stroke:#fbbf24,color:#1f2937
+    classDef process fill:#ef4444,stroke:#f87171,color:#ffffff
+    classDef ui fill:#10b981,stroke:#34d399,color:#ffffff
 ```
 
 ### ⏱️ 시간순 실행 과정
@@ -732,20 +925,24 @@ for (index, effect) in effects.enumerated() {
 
 **실행 과정:**
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'lineColor': '#e2e8f0', 'textColor': '#f8fafc'}}}%%
 graph TD
-    A[concurrent 시작] --> B[Effect 목록 분석]
-    B --> C[.run Effect 1: fetchUserProfile]
-    B --> D[.run Effect 2: fetchUserSettings] 
-    B --> E[.run Effect 3: fetchNotifications]
+    A[⚡ concurrent 시작]:::start --> B[📋 Effect 목록 분석]:::process
+    B --> C[🌐 .run Effect 1:<br/>fetchUserProfile]:::effect
+    B --> D[🌐 .run Effect 2:<br/>fetchUserSettings]:::effect
+    B --> E[🌐 .run Effect 3:<br/>fetchNotifications]:::effect
     
-    C --> F[TaskGroup에 추가]
+    C --> F[📦 TaskGroup에 추가]:::group
     D --> F
     E --> F
     
-    F --> G[3개 Task가 백그라운드에서 병렬 실행]
+    F --> G[⚡ 3개 Task가<br/>백그라운드에서<br/>병렬 실행]:::parallel
     
-    style F fill:#581c87,stroke:#a855f7,stroke-width:2px,color:#ffffff
-    style G fill:#7c2d12,stroke:#ef4444,stroke-width:2px,color:#ffffff
+    classDef start fill:#8b5cf6,stroke:#a78bfa,color:#ffffff
+    classDef process fill:#475569,stroke:#94a3b8,color:#ffffff
+    classDef effect fill:#ef4444,stroke:#f87171,color:#ffffff
+    classDef group fill:#8b5cf6,stroke:#a78bfa,color:#ffffff
+    classDef parallel fill:#10b981,stroke:#34d399,color:#ffffff
 ```
 
 **실제 실행:**
@@ -1433,25 +1630,71 @@ case .asyncAction:
 
 #### 2. 로깅 활용하기
 ```swift
-let viewModel = MyViewModel(
-    isLoggingEnabled: true,  // 디버깅을 위해 로깅 활성화
-    logLevel: .debug
-)
+import AsyncViewModel
+
+// 매크로로 간편하게 로깅 설정
+@AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
+@MainActor  // 필수: MainActor를 명시해야 합니다
+final class MyViewModel: ObservableObject {
+    @Published var state: State
+    
+    init(initialState: State = State()) {
+        self.state = initialState
+    }
+    
+    // ... transform, reduce ...
+}
+
+// 또는 런타임에 변경
+viewModel.isLoggingEnabled = false
+viewModel.logLevel = .error
 
 // 로그를 통해 데이터 흐름 추적
 // Action 실행 → State 변경 → Effect 처리 과정을 모두 볼 수 있음
 ```
 
+> 💡 **`@AsyncViewModel` 매크로**를 사용하면:
+> - 9개의 필수 프로퍼티를 자동으로 생성
+> - extension에 `@MainActor`를 자동으로 추가하여 안전한 동시성 보장
+> - 로깅 설정도 간편하게 가능!
+
 #### 3. 테스트 작성하기
 ```swift
-func testInputNumber() {
+import Testing
+import AsyncViewModel
+
+@MainActor
+@Test("숫자 입력 테스트")
+func testInputNumber() async throws {
     let viewModel = CalculatorViewModel()
+    let store = AsyncTestStore(viewModel: viewModel)
+    defer { store.cleanup() }
     
-    viewModel.send(.number(5))
+    store.send(.number(5))
     
-    XCTAssertEqual(viewModel.state.display, "5")
+    #expect(store.state.display == "5")
+    #expect(store.actions == [.inputNumber(5)])
+}
+
+@Test("비동기 계산 테스트")
+func testCalculation() async throws {
+    let viewModel = CalculatorViewModel()
+    let store = AsyncTestStore(viewModel: viewModel)
+    defer { store.cleanup() }
+    
+    store.send(.number(5))
+    store.send(.operation(.add))
+    store.send(.number(3))
+    store.send(.equals)
+    
+    // Effect 완료 대기
+    try await store.waitForEffects(timeout: 1.0)
+    
+    #expect(store.state.display == "8")
 }
 ```
+
+> 💡 **AsyncTestStore**를 사용하면 ViewModel의 동작을 쉽게 테스트할 수 있습니다!
 
 ## 🎉 마무리
 
@@ -1463,12 +1706,19 @@ AsyncViewModel은 다음과 같은 장점을 제공합니다:
 3. **우수한 테스트 가능성**: 순수 함수 기반으로 테스트 작성이 쉬움
 4. **자동 로깅**: 디버깅과 성능 분석을 위한 내장 로깅 시스템
 5. **타입 안전성**: Swift의 타입 시스템을 활용한 안전한 코딩
+6. **매크로 지원**: `@AsyncViewModel` 매크로로 보일러플레이트 코드 자동 생성 및 MainActor 안전성 보장
 
 ### 🚀 다음 단계
 - [ ] 더 복잡한 앱에서 AsyncViewModel 적용해보기
 - [ ] 커스텀 Effect 타입 만들기
 - [ ] 성능 최적화 기법 익히기
 - [ ] 테스트 코드 작성하기
+- [ ] 매크로 활용하여 코드 간소화하기
+
+### 📚 추가 자료
+- [README.md](README.md) - 빠른 시작 및 기본 사용법
+- [README - 매크로로 간편하게](README.md#매크로로-간편하게) - 매크로 사용 가이드
+- [README - Effect 가이드](README.md#effect-가이드) - Effect 완벽 가이드
 
 AsyncViewModel로 더 깔끔하고 유지보수하기 쉬운 앱을 만들어보세요! 🎯
 
