@@ -23,12 +23,11 @@ struct AsyncViewModelMacroTests {
     
     // MARK: - Basic Expansion Tests
     
-    @Test("기본 매크로 확장 - 모든 프로퍼티 생성")
+    @Test("기본 매크로 확장 - 모든 프로퍼티 생성 및 멤버에 @MainActor 자동 추가")
     func testBasicExpansion() {
         assertMacroExpansion(
             """
             @AsyncViewModel
-            @MainActor
             public final class TestViewModel: ObservableObject {
                 public enum Input: Sendable { case test }
                 public enum Action: Equatable & Sendable { case test }
@@ -39,13 +38,17 @@ struct AsyncViewModelMacroTests {
             }
             """,
             expandedSource: """
-            @MainActor
             public final class TestViewModel: ObservableObject {
+                @MainActor
                 public enum Input: Sendable { case test }
+                @MainActor
                 public enum Action: Equatable & Sendable { case test }
+                @MainActor
                 public struct State: Equatable & Sendable { }
+                @MainActor
                 public enum CancelID: Hashable & Sendable { case test }
                 
+                @MainActor
                 @Published public var state: State = State()
 
                 public var tasks: [CancelID: Task<Void, Never>] = [:]
@@ -67,6 +70,7 @@ struct AsyncViewModelMacroTests {
                 public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
             }
 
+            @MainActor
             extension TestViewModel: AsyncViewModelProtocol {
             }
             """,
@@ -74,12 +78,11 @@ struct AsyncViewModelMacroTests {
         )
     }
     
-    @Test("커스텀 파라미터로 매크로 확장")
+    @Test("커스텀 파라미터로 매크로 확장 및 멤버에 @MainActor 자동 추가")
     func testCustomParameters() {
         assertMacroExpansion(
             """
             @AsyncViewModel(isLoggingEnabled: false, logLevel: .debug)
-            @MainActor
             public final class TestViewModel: ObservableObject {
                 public enum Input: Sendable { case test }
                 public enum Action: Equatable & Sendable { case test }
@@ -90,13 +93,17 @@ struct AsyncViewModelMacroTests {
             }
             """,
             expandedSource: """
-            @MainActor
             public final class TestViewModel: ObservableObject {
+                @MainActor
                 public enum Input: Sendable { case test }
+                @MainActor
                 public enum Action: Equatable & Sendable { case test }
+                @MainActor
                 public struct State: Equatable & Sendable { }
+                @MainActor
                 public enum CancelID: Hashable & Sendable { case test }
                 
+                @MainActor
                 @Published public var state: State = State()
 
                 public var tasks: [CancelID: Task<Void, Never>] = [:]
@@ -118,6 +125,7 @@ struct AsyncViewModelMacroTests {
                 public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
             }
 
+            @MainActor
             extension TestViewModel: AsyncViewModelProtocol {
             }
             """,
@@ -125,12 +133,11 @@ struct AsyncViewModelMacroTests {
         )
     }
     
-    @Test("이미 선언된 프로퍼티는 건너뛰기")
+    @Test("이미 선언된 프로퍼티는 건너뛰기 및 멤버에 @MainActor 자동 추가")
     func testSkipExistingProperties() {
         assertMacroExpansion(
             """
             @AsyncViewModel
-            @MainActor
             public final class TestViewModel: ObservableObject {
                 public enum Input: Sendable { case test }
                 public enum Action: Equatable & Sendable { case test }
@@ -145,17 +152,23 @@ struct AsyncViewModelMacroTests {
             }
             """,
             expandedSource: """
-            @MainActor
             public final class TestViewModel: ObservableObject {
+                @MainActor
                 public enum Input: Sendable { case test }
+                @MainActor
                 public enum Action: Equatable & Sendable { case test }
+                @MainActor
                 public struct State: Equatable & Sendable { }
+                @MainActor
                 public enum CancelID: Hashable & Sendable { case test }
                 
+                @MainActor
                 @Published public var state: State = State()
                 
                 // 사용자가 커스텀한 프로퍼티
+                @MainActor
                 public var isLoggingEnabled: Bool = false
+                @MainActor
                 public var logLevel: LogLevel = .error
 
                 public var tasks: [CancelID: Task<Void, Never>] = [:]
@@ -173,6 +186,63 @@ struct AsyncViewModelMacroTests {
                 public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
             }
 
+            @MainActor
+            extension TestViewModel: AsyncViewModelProtocol {
+            }
+            """,
+            macros: testMacros
+        )
+    }
+    
+    @Test("이미 @MainActor가 있는 멤버는 중복 추가하지 않기")
+    func testExistingMainActorOnMember() {
+        assertMacroExpansion(
+            """
+            @AsyncViewModel
+            public final class TestViewModel: ObservableObject {
+                public enum Input: Sendable { case test }
+                public enum Action: Equatable & Sendable { case test }
+                public struct State: Equatable & Sendable { }
+                public enum CancelID: Hashable & Sendable { case test }
+                
+                @MainActor
+                @Published public var state: State = State()
+            }
+            """,
+            expandedSource: """
+            public final class TestViewModel: ObservableObject {
+                @MainActor
+                public enum Input: Sendable { case test }
+                @MainActor
+                public enum Action: Equatable & Sendable { case test }
+                @MainActor
+                public struct State: Equatable & Sendable { }
+                @MainActor
+                public enum CancelID: Hashable & Sendable { case test }
+                
+                @MainActor
+                @Published public var state: State = State()
+
+                public var tasks: [CancelID: Task<Void, Never>] = [:]
+
+                public var effectQueue: [AsyncEffect<Action, CancelID>] = []
+
+                public var isProcessingEffects: Bool = false
+
+                public var actionObserver: ((Action) -> Void)? = nil
+
+                public var isLoggingEnabled: Bool = true
+
+                public var logLevel: LogLevel = .info
+
+                public var stateChangeObserver: ((State, State) -> Void)? = nil
+
+                public var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? = nil
+
+                public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
+            }
+
+            @MainActor
             extension TestViewModel: AsyncViewModelProtocol {
             }
             """,

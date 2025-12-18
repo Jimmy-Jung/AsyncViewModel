@@ -5,7 +5,7 @@
 //  Created by 정준영 on 2025/12/17.
 //
 
-import AsyncViewModelKit
+import AsyncViewModelCore
 
 // MARK: - AsyncViewModel Macro
 
@@ -26,7 +26,6 @@ import AsyncViewModelKit
 ///
 /// ```swift
 /// @AsyncViewModel
-/// @MainActor
 /// public final class MyViewModel: ObservableObject {
 ///     public enum Input: Sendable { ... }
 ///     public enum Action: Equatable & Sendable { ... }
@@ -40,13 +39,15 @@ import AsyncViewModelKit
 /// }
 /// ```
 ///
+/// 매크로가 자동으로 모든 멤버에 `@MainActor`를 추가하므로, 클래스나 멤버에 별도로 명시할 필요가 없습니다.
+///
 /// ## 매크로 확장 결과
 ///
 /// 위 코드는 다음과 같이 확장됩니다:
 ///
 /// ```swift
 /// @MainActor
-/// public final class MyViewModel: ObservableObject, AsyncViewModel {
+/// public final class MyViewModel: ObservableObject {
 ///     // ... 사용자 정의 코드 ...
 ///
 ///     // 매크로가 생성한 프로퍼티들
@@ -60,6 +61,9 @@ import AsyncViewModelKit
 ///     public var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? = nil
 ///     public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
 /// }
+///
+/// @MainActor
+/// extension MyViewModel: AsyncViewModelProtocol {}
 /// ```
 ///
 /// ## 매크로 파라미터
@@ -70,7 +74,7 @@ import AsyncViewModelKit
 /// ## 주의사항
 ///
 /// - 이 매크로는 `class`에만 적용할 수 있습니다.
-/// - `@MainActor` 어트리뷰트가 필요합니다.
+/// - 매크로가 자동으로 모든 메서드와 프로퍼티에 `@MainActor`를 추가합니다.
 /// - `ObservableObject` 프로토콜을 준수해야 합니다.
 /// - `Input`, `Action`, `State`, `CancelID` 타입을 정의해야 합니다.
 /// - `@Published var state: State` 프로퍼티를 선언해야 합니다.
@@ -86,6 +90,7 @@ import AsyncViewModelKit
     named(effectObserver),
     named(performanceObserver)
 )
+@attached(memberAttribute)
 @attached(extension, conformances: AsyncViewModelProtocol)
 public macro AsyncViewModel(
     isLoggingEnabled: Bool = true,

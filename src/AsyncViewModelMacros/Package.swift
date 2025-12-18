@@ -20,7 +20,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
-        .package(path: "../AsyncViewModelKit"),
+        .package(path: "../AsyncViewModel"),
     ],
     targets: [
         // 매크로 선언 타겟 (사용자가 import하는 모듈)
@@ -28,7 +28,7 @@ let package = Package(
             name: "AsyncViewModelMacros",
             dependencies: [
                 "AsyncViewModelMacrosImpl",
-                .product(name: "AsyncViewModelKit", package: "AsyncViewModelKit"),
+                .product(name: "AsyncViewModelCore", package: "AsyncViewModel"),
             ]
         ),
         // 매크로 구현 타겟 (컴파일러 플러그인)

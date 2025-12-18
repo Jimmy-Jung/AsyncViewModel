@@ -14,7 +14,6 @@ import SwiftSyntaxMacros
 /// AsyncViewModel 매크로 에러 타입
 public enum AsyncViewModelMacroError: CustomStringConvertible, Error {
     case onlyApplicableToClass
-    case missingMainActorAttribute
     case missingObservableObjectConformance
     case missingStateProperty
     case missingRequiredTypes([String])
@@ -23,8 +22,6 @@ public enum AsyncViewModelMacroError: CustomStringConvertible, Error {
         switch self {
         case .onlyApplicableToClass:
             return "@AsyncViewModel can only be applied to a class"
-        case .missingMainActorAttribute:
-            return "@AsyncViewModel requires @MainActor attribute on the class"
         case .missingObservableObjectConformance:
             return "@AsyncViewModel requires the class to conform to ObservableObject"
         case .missingStateProperty:
@@ -38,7 +35,7 @@ public enum AsyncViewModelMacroError: CustomStringConvertible, Error {
 // MARK: - AsyncViewModelMacroImpl
 
 /// AsyncViewModel 프로토콜의 보일러플레이트 프로퍼티를 생성하는 매크로 구현
-public struct AsyncViewModelMacroImpl: MemberMacro, ExtensionMacro {
+public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, ExtensionMacro {
     
     // MARK: - MemberMacro Implementation
     
@@ -146,6 +143,39 @@ public struct AsyncViewModelMacroImpl: MemberMacro, ExtensionMacro {
         return members
     }
     
+    // MARK: - MemberAttributeMacro Implementation
+    
+    public static func expansion(
+        of node: AttributeSyntax,
+        attachedTo declaration: some DeclGroupSyntax,
+        providingAttributesFor member: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [AttributeSyntax] {
+        // 이미 @MainActor가 있는지 확인
+        if let attributedNode = member.asProtocol(WithAttributesSyntax.self) {
+            let hasMainActor = attributedNode.attributes.contains { attribute in
+                if case let .attribute(attr) = attribute,
+                   let identifier = attr.attributeName.as(IdentifierTypeSyntax.self) {
+                    return identifier.name.text == "MainActor"
+                }
+                return false
+            }
+            
+            // 이미 @MainActor가 있으면 추가하지 않음
+            if hasMainActor {
+                return []
+            }
+        }
+        
+        // @MainActor 어트리뷰트 생성
+        let mainActorAttribute = AttributeSyntax(
+            atSignToken: .atSignToken(),
+            attributeName: IdentifierTypeSyntax(name: .identifier("MainActor"))
+        )
+        
+        return [mainActorAttribute]
+    }
+    
     // MARK: - ExtensionMacro Implementation
     
     public static func expansion(
@@ -161,7 +191,9 @@ public struct AsyncViewModelMacroImpl: MemberMacro, ExtensionMacro {
         }
         
         // AsyncViewModelProtocol 프로토콜 준수를 위한 extension 생성
+        // @MainActor를 extension에 추가하여 모든 메서드가 MainActor에서 실행되도록 함
         let extensionDecl: DeclSyntax = """
+            @MainActor
             extension \(type.trimmed): AsyncViewModelProtocol {}
             """
         
