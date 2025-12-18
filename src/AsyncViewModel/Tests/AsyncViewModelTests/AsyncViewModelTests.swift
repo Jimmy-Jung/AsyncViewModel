@@ -5,7 +5,7 @@
 //  Created by 정준영 on 2025/8/3.
 //
 
-@testable import AsyncViewModel
+@testable import AsyncViewModelCore
 import Foundation
 import Testing
 
@@ -13,8 +13,8 @@ import Testing
 struct AsyncViewModelTests {
     // MARK: - Mock ViewModel Definition
 
-    /// 테스트를 위한 `AsyncViewModel`의 구체적인 구현체
-    final class MockViewModel: AsyncViewModel {
+    /// 테스트를 위한 `AsyncViewModelProtocol`의 구체적인 구현체
+    final class MockViewModel: AsyncViewModelProtocol, ObservableObject {
         
         // MARK: - Associated Types
 

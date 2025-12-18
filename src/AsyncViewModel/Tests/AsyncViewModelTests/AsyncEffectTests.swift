@@ -5,7 +5,7 @@
 //  Created by 정준영 on 2025/8/15.
 //
 
-@testable import AsyncViewModel
+@testable import AsyncViewModelCore
 import Foundation
 import Testing
 
