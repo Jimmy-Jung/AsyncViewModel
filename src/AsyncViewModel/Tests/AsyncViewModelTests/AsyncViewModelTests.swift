@@ -15,7 +15,6 @@ struct AsyncViewModelTests {
 
     /// 테스트를 위한 `AsyncViewModelProtocol`의 구체적인 구현체
     final class MockViewModel: AsyncViewModelProtocol, ObservableObject {
-        
         // MARK: - Associated Types
 
         enum Input: Sendable {
@@ -75,20 +74,16 @@ struct AsyncViewModelTests {
         var effectQueue: [AsyncEffect<Action, CancelID>] = []
         var isProcessingEffects: Bool = false
         var actionObserver: ((Action) -> Void)?
-        
-        // MARK: - Logging Properties
-        
-        var isLoggingEnabled: Bool = true
-        var logLevel: LogLevel = .info
+
         var stateChangeObserver: ((State, State) -> Void)?
         var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)?
         var performanceObserver: ((String, TimeInterval) -> Void)?
-        
+
         var handleErrorCallCount = 0
         var receivedError: SendableError?
 
         init(initialState: State = .init()) {
-            self.state = initialState
+            state = initialState
         }
 
         // MARK: - Transform
@@ -174,52 +169,52 @@ struct AsyncViewModelTests {
 
             case .cancelLongRunningTask:
                 return [.cancel(id: CancelID.longRunningTask)]
-                
+
             case let .restartableTaskCompleted(value):
                 state.restartableTaskResult = value
                 return [.none]
-                
+
             case let .concurrentTaskCompleted(value):
                 state.concurrentResults.append(value)
                 return [.none]
-                
+
             case let .triggerRestartableTask(value):
                 return [.sleepThen(
                     id: CancelID.restartableTask,
                     for: 1.0, // 1초
                     action: .restartableTaskCompleted(value)
                 )]
-                
+
             case .actionChainingTrigger:
                 // .run 효과에서 두 개의 액션을 반환하여 액션 체이닝 테스트
                 return [.run {
                     try await Task.sleep(nanoseconds: 100_000_000) // 0.1초
                     return .actionChainingFirstAction
                 }]
-                
+
             case .actionChainingFirstAction:
                 state.actionChainingResult = "First"
                 return [.action(.actionChainingSecondAction)]
-                
+
             case .actionChainingSecondAction:
                 state.actionChainingResult = "Second"
                 return [.none]
-                
+
             case .nestedActionChainingTrigger:
                 // 중첩된 액션 체이닝 테스트
                 return [.run {
                     try await Task.sleep(nanoseconds: 100_000_000) // 0.1초
                     return .nestedFirstAction
                 }]
-                
+
             case .nestedFirstAction:
                 state.nestedActionChainingResults.append("First")
                 return [.action(.nestedSecondAction)]
-                
+
             case .nestedSecondAction:
                 state.nestedActionChainingResults.append("Second")
                 return [.action(.nestedThirdAction)]
-                
+
             case .nestedThirdAction:
                 state.nestedActionChainingResults.append("Third")
                 return [.none]
@@ -379,7 +374,7 @@ struct AsyncViewModelTests {
 
         // 최종 상태는 두 번째 작업의 결과여야 함
         #expect(testStore.state.restartableTaskResult == "second")
-        
+
         // 작업 완료 후 tasks 딕셔너리는 비어있어야 함
         try await testStore.wait(for: { _ in viewModel.tasks[MockViewModel.CancelID.restartableTask] == nil })
         #expect(viewModel.tasks[MockViewModel.CancelID.restartableTask] == nil)
@@ -415,26 +410,26 @@ struct AsyncViewModelTests {
         // Given
         let viewModel = MockViewModel()
         let testStore = AsyncTestStore(viewModel: viewModel)
-        
+
         // When
         // 긴 작업을 시작
         testStore.send(.triggerLongRunningTask(duration: 2_000_000_000)) // 2초
-        
+
         // 작업이 시작되었는지 확인
         try await testStore.wait(for: { $0.isLongTaskRunning == true })
         #expect(testStore.state.isLongTaskRunning == true)
-        
+
         // 즉시 작업을 취소
         testStore.send(.cancelLongRunningTask)
-        
+
         // Then
         // tasks 딕셔너리에서 즉시 제거되는지 확인
         try await testStore.wait(for: { _ in viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil })
         #expect(viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil)
-        
+
         // 작업의 원래 소요 시간(2초)보다 더 오래 기다림
         try await Task.sleep(nanoseconds: 2_500_000_000)
-        
+
         // longRunningTaskFinished 액션이 호출되지 않았으므로, isLongTaskRunning 상태는 true로 유지되어야 함
         #expect(testStore.state.isLongTaskRunning == true)
     }
@@ -444,14 +439,14 @@ struct AsyncViewModelTests {
         // Given
         let viewModel = MockViewModel()
         let testStore = AsyncTestStore(viewModel: viewModel)
-        
+
         // When
         testStore.send(.triggerConcurrentEffects)
-        
+
         // Then
         // 두 작업이 모두 완료될 때까지 기다림 (결과가 2개가 될 때까지)
         try await testStore.wait(for: { $0.concurrentResults.count == 2 }, timeout: 1.0)
-        
+
         // 순서에 관계없이 두 결과가 모두 포함되었는지 확인
         let expectedResults = Set(["A", "B"])
         let actualResults = Set(testStore.state.concurrentResults)
@@ -463,117 +458,117 @@ struct AsyncViewModelTests {
         // Given
         let viewModel = MockViewModel()
         let testStore = AsyncTestStore(viewModel: viewModel)
-        
+
         // When
         testStore.send(.triggerMultipleActions)
-        
+
         // Then
         // .setValue(1) -> .subsequentAction 순서로 실행되어 최종 값은 999가 되어야 함
         try await testStore.wait(for: { $0.currentValue == 999 }, timeout: 1.0)
         #expect(testStore.state.currentValue == 999)
     }
-    
+
     // MARK: - Action Chaining Tests
-    
+
     @Test(".run 효과에서 반환된 액션들이 즉시 처리되어야 한다")
     func runEffect_shouldProcessReturnedActionsImmediately() async throws {
         // Given
         let viewModel = MockViewModel()
         let testStore = AsyncTestStore(viewModel: viewModel)
-        
+
         // When
         testStore.send(.triggerActionChainingEffect)
-        
+
         // Then
         // .run 효과가 완료된 후 반환된 액션들이 순차적으로 처리되어야 함
         // actionChainingTrigger -> (0.1초 대기) -> actionChainingFirstAction -> actionChainingSecondAction
         try await testStore.wait(for: { $0.actionChainingResult == "Second" }, timeout: 1.0)
         #expect(testStore.state.actionChainingResult == "Second")
     }
-    
+
     @Test("중첩된 액션 체이닝이 올바르게 처리되어야 한다")
     func nestedActionChaining_shouldProcessAllActionsInSequence() async throws {
         // Given
         let viewModel = MockViewModel()
         let testStore = AsyncTestStore(viewModel: viewModel)
-        
+
         // When
         testStore.send(.triggerNestedActionChainingEffect)
-        
+
         // Then
         // nestedActionChainingTrigger -> (0.1초 대기) -> nestedFirstAction -> nestedSecondAction -> nestedThirdAction
         try await testStore.wait(for: { $0.nestedActionChainingResults.count == 3 }, timeout: 1.0)
-        
+
         let expectedResults = ["First", "Second", "Third"]
         #expect(testStore.state.nestedActionChainingResults == expectedResults)
     }
-    
+
     @Test(".run 효과에서 반환된 액션이 다른 .run 효과를 생성할 때도 즉시 처리되어야 한다")
     func runEffect_returningActionWithRunEffect_shouldProcessImmediately() async throws {
         // Given
         let viewModel = MockViewModel()
         let testStore = AsyncTestStore(viewModel: viewModel)
-        
+
         // When
         testStore.send(.triggerActionEffect) // setValue(100) -> subsequentAction(999)
-        
+
         // Then
         // setValue(100)이 실행되면 .action(.subsequentAction)이 반환되고
         // subsequentAction이 실행되어 currentValue가 999가 되어야 함
         try await testStore.wait(for: { $0.currentValue == 999 }, timeout: 1.0)
         #expect(testStore.state.currentValue == 999)
     }
-    
+
     @Test(".run 효과에서 실패한 후 반환된 액션들이 처리되어야 한다")
     func runEffect_failureThenReturnedActions_shouldProcessImmediately() async throws {
         // Given
         let viewModel = MockViewModel()
         let testStore = AsyncTestStore(viewModel: viewModel)
-        
+
         // When
         testStore.send(.triggerAsyncEffect(shouldSucceed: false)) // setValue(300) -> 실패하는 .run 효과
-        
+
         // Then
         // setValue(300)이 실행되어 currentValue가 300이 되고
         // .run 효과가 실패하여 handleError가 호출되어야 함
         #expect(testStore.state.currentValue == 300)
-        
+
         // 비동기 작업이 실패하고 handleError가 호출될 때까지 기다림
         try await testStore.wait(for: { $0.lastError == "Simulated Failure" }, timeout: 1.0)
         #expect(viewModel.handleErrorCallCount == 1)
         #expect(testStore.state.lastError == "Simulated Failure")
     }
-    
+
     @Test("효과 큐에 추가된 액션들이 현재 처리 루프가 아닐 때 즉시 처리되어야 한다")
     func effectQueue_addedActionsWhenNotProcessing_shouldProcessImmediately() async throws {
         // Given
         let viewModel = MockViewModel()
         let testStore = AsyncTestStore(viewModel: viewModel)
-        
+
         // When
         testStore.send(.triggerActionChainingEffect)
-        
+
         // Then
         // .run 효과가 비동기로 실행되면서 새로 추가된 효과들이
         // 현재 처리 루프가 끝난 후에도 즉시 처리되어야 함
         try await testStore.wait(for: { $0.actionChainingResult == "Second" }, timeout: 1.0)
         #expect(testStore.state.actionChainingResult == "Second")
     }
-    
+
     @Test("여러 .run 효과가 동시에 완료될 때 각각의 반환된 액션들이 처리되어야 한다")
     func multipleRunEffects_completingSimultaneously_shouldProcessAllReturnedActions() async throws {
         // Given
         let viewModel = MockViewModel()
         let testStore = AsyncTestStore(viewModel: viewModel)
-        
+
         // When
         testStore.send(.triggerConcurrentEffects) // setValue(500) -> 두 개의 동시 .run 효과
-        
+
         // Then
         // 두 개의 .run 효과가 병렬로 실행되고 각각 concurrentTaskCompleted 액션을 반환
         // 두 액션이 모두 처리되어 concurrentResults에 "A", "B"가 추가되어야 함
         try await testStore.wait(for: { $0.concurrentResults.count == 2 }, timeout: 1.0)
-        
+
         let expectedResults = Set(["A", "B"])
         let actualResults = Set(testStore.state.concurrentResults)
         #expect(actualResults == expectedResults)

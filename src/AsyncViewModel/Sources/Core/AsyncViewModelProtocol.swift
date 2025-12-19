@@ -36,13 +36,7 @@ public protocol AsyncViewModelProtocol: ObservableObject {
     /// 디버깅/테스트를 위한 액션 관찰 훅
     var actionObserver: ((Action) -> Void)? { get set }
 
-    // MARK: - Logging Properties
-
-    /// 로깅 활성화/비활성화 플래그
-    var isLoggingEnabled: Bool { get set }
-
-    /// 현재 로깅 레벨
-    var logLevel: LogLevel { get set }
+    // MARK: - Observer Properties
 
     /// 상태 변경 관찰 훅
     var stateChangeObserver: ((State, State) -> Void)? { get set }
@@ -94,17 +88,37 @@ extension AsyncViewModelProtocol {
         // 상태 변경 및 Effect 생성
         let effects = reduce(state: &state, action: action)
 
-        // 상태 변경 로깅
+        // 상태 변경 로깅 개선
         if oldState != state {
-            logStateChange(from: oldState, to: state)
+            let logger = LoggerConfiguration.logger
+            if logger.options.showStateDiffOnly {
+                let diff = calculateStateDiff(from: oldState, to: state)
+                if !diff.isEmpty {
+                    logStateDiff(diff)
+                }
+            } else {
+                // 전체 State 로깅 (기존 방식)
+                logStateChange(from: oldState, to: state)
+            }
+
+            // 상태 변경 관찰자 호출 (로깅과 별개)
+            stateChangeObserver?(oldState, state)
         }
 
         // Effect 큐에 추가
         effectQueue.append(contentsOf: effects)
 
-        // Effect 로깅
-        for effect in effects {
-            logEffect(effect)
+        // Effect 로깅 개선
+        if !effects.isEmpty {
+            let logger = LoggerConfiguration.logger
+            if logger.options.groupEffects {
+                logEffects(effects)
+            } else {
+                // 개별 로깅 (기존 방식)
+                for effect in effects {
+                    logEffect(effect)
+                }
+            }
         }
 
         // 성능 측정 및 로깅
@@ -146,13 +160,13 @@ extension AsyncViewModelProtocol {
         switch effect {
         case .none:
             break
-        case .action(let action):
+        case let .action(action):
             processActionEffect(action)
-        case .run(let id, let operation):
+        case let .run(id, operation):
             await processRunEffect(id: id, operation: operation)
-        case .cancel(let id):
+        case let .cancel(id):
             processCancelEffect(id: id)
-        case .concurrent(let effects):
+        case let .concurrent(effects):
             await processConcurrentEffect(effects)
         }
 
@@ -173,11 +187,30 @@ extension AsyncViewModelProtocol {
         let newEffects = reduce(state: &state, action: action)
 
         if oldState != state {
-            logStateChange(from: oldState, to: state)
+            let logger = LoggerConfiguration.logger
+            if logger.options.showStateDiffOnly {
+                let diff = calculateStateDiff(from: oldState, to: state)
+                if !diff.isEmpty {
+                    logStateDiff(diff)
+                }
+            } else {
+                logStateChange(from: oldState, to: state)
+            }
+
+            // 상태 변경 관찰자 호출
+            stateChangeObserver?(oldState, state)
         }
 
         effectQueue.append(contentsOf: newEffects)
-        logEffects(newEffects)
+
+        if !newEffects.isEmpty {
+            let logger = LoggerConfiguration.logger
+            if logger.options.groupEffects {
+                logEffects(newEffects)
+            } else {
+                logEffects(newEffects, individually: true)
+            }
+        }
     }
 
     /// 비동기 작업 Effect를 처리합니다.
@@ -262,17 +295,17 @@ extension AsyncViewModelProtocol {
         shouldTriggerProcessing: Bool = false
     ) {
         switch result {
-        case .action(let action):
+        case let .action(action):
             processActionEffect(action)
 
-            if shouldTriggerProcessing && !isProcessingEffects {
+            if shouldTriggerProcessing, !isProcessingEffects {
                 Task {
                     await processNextEffect()
                 }
             }
         case .none:
             break
-        case .error(let error):
+        case let .error(error):
             logError(error)
             if !error.isCancellationError {
                 handleError(error)
@@ -281,9 +314,15 @@ extension AsyncViewModelProtocol {
     }
 
     /// Effect 배열을 로깅합니다.
-    private func logEffects(_ effects: [AsyncEffect<Action, CancelID>]) {
-        for effect in effects {
-            logEffect(effect)
+    private func logEffects(_ effects: [AsyncEffect<Action, CancelID>], individually: Bool) {
+        if individually {
+            // 개별 로깅
+            for effect in effects {
+                logEffect(effect)
+            }
+        } else {
+            // 그룹 로깅
+            logEffects(effects)
         }
     }
 
@@ -297,7 +336,7 @@ extension AsyncViewModelProtocol {
             of: (index: Int, result: AsyncOperationResult<Action>?).self
         ) { group in
             for (index, effect) in effects.enumerated() {
-                if case .run(_, let operation) = effect {
+                if case let .run(_, operation) = effect {
                     group.addTask {
                         let result = await operation()
                         return (index, result)
@@ -322,7 +361,7 @@ extension AsyncViewModelProtocol {
     ) async {
         for (index, effect) in effects.enumerated() {
             switch effect {
-            case .run(let id, _):
+            case let .run(id, _):
                 if let operationResult = results.first(where: { $0.index == index })?.result {
                     cancelExistingTask(id: id)
                     handleOperationResult(operationResult)
@@ -334,7 +373,7 @@ extension AsyncViewModelProtocol {
     }
 
     /// 에러 처리를 위한 기본 구현
-    public func handleError(_ error: SendableError) {
+    public func handleError(_: SendableError) {
         // 기본적으로는 아무것도 하지 않음
         // 에러 로깅은 handleEffect에서 이미 처리됨
         // 구체적인 ViewModel에서 필요에 따라 오버라이드하여 구현
@@ -342,48 +381,105 @@ extension AsyncViewModelProtocol {
 
     // MARK: - Logging Helpers
 
-    /// 액션 로깅
-    public func logAction(_ action: Action, level: LogLevel = .info) {
-        guard isLoggingEnabled, level.rawValue >= logLevel.rawValue else {
-            return
+    /// State diff를 계산하는 헬퍼 메서드
+    private func calculateStateDiff(
+        from oldState: State,
+        to newState: State
+    ) -> [String: (old: String, new: String)] {
+        var changes: [String: (old: String, new: String)] = [:]
+
+        let oldMirror = Mirror(reflecting: oldState)
+        let newMirror = Mirror(reflecting: newState)
+
+        for (oldChild, newChild) in zip(oldMirror.children, newMirror.children) {
+            guard let label = oldChild.label else { continue }
+
+            let oldValue = String(describing: oldChild.value)
+            let newValue = String(describing: newChild.value)
+
+            if oldValue != newValue {
+                changes[label] = (old: oldValue, new: newValue)
+            }
         }
 
-        let logger = Logger(
-            subsystem: "com.jimmy.AsyncViewModel",
-            category: String(describing: Self.self)
-        )
-        let message = "Action: \(String(describing: action))"
+        return changes
+    }
 
-        switch level {
-        case .debug:
-            logger.debug("\(message, privacy: .public)")
-        case .info:
-            logger.info("\(message, privacy: .public)")
-        case .warning:
-            logger.warning("\(message, privacy: .public)")
-        case .error:
-            logger.error("\(message, privacy: .public)")
+    /// State diff 로깅
+    private func logStateDiff(_ changes: [String: (old: String, new: String)]) {
+        let viewModelName = String(describing: Self.self)
+
+        LoggerConfiguration.logger.logStateDiff(
+            changes: changes,
+            viewModel: viewModelName,
+            file: #file,
+            function: #function,
+            line: #line
+        )
+    }
+
+    /// Effect 배열을 그룹으로 로깅
+    private func logEffects(_ effects: [AsyncEffect<Action, CancelID>]) {
+        let effectDescriptions = effects.map { String(describing: $0) }
+        let viewModelName = String(describing: Self.self)
+
+        LoggerConfiguration.logger.logEffects(
+            effectDescriptions,
+            viewModel: viewModelName,
+            file: #file,
+            function: #function,
+            line: #line
+        )
+
+        // Effect 관찰자 호출
+        for effect in effects {
+            effectObserver?(effect)
         }
     }
 
-    /// 상태 변경 로깅
-    public func logStateChange(from oldState: State, to newState: State) {
-        guard isLoggingEnabled, logLevel.rawValue <= LogLevel.info.rawValue
-        else { return }
+    /// 액션 로깅
+    public func logAction(
+        _ action: Action,
+        level: LogLevel = .info,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        let actionDescription = String(describing: action)
+        let viewModelName = String(describing: Self.self)
 
-        let logger = Logger(
-            subsystem: "com.jimmy.AsyncViewModel",
-            category: String(describing: Self.self)
+        // 전역 로거 사용
+        LoggerConfiguration.logger.logAction(
+            actionDescription,
+            viewModel: viewModelName,
+            level: level,
+            file: file,
+            function: function,
+            line: line
         )
+    }
 
-        // JSON 형태로 포맷팅하여 읽기 편하게 출력
+    /// 상태 변경 로깅
+    public func logStateChange(
+        from oldState: State,
+        to newState: State,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        let viewModelName = String(describing: Self.self)
         let oldStateFormatted = formatStateForLogging(oldState)
         let newStateFormatted = formatStateForLogging(newState)
 
-        logger.info(
-            "State changed from:\n\(oldStateFormatted, privacy: .public)"
+        // 전역 로거 사용
+        LoggerConfiguration.logger.logStateChange(
+            from: oldStateFormatted,
+            to: newStateFormatted,
+            viewModel: viewModelName,
+            file: file,
+            function: function,
+            line: line
         )
-        logger.info("State changed to:\n\(newStateFormatted, privacy: .public)")
 
         // 상태 변경 관찰자 호출
         stateChangeObserver?(oldState, newState)
@@ -395,8 +491,7 @@ extension AsyncViewModelProtocol {
     }
 
     /// 값을 재귀적으로 로깅용으로 포맷팅하는 헬퍼 메서드
-    private func formatValueForLogging(_ value: Any, indentLevel: Int) -> String
-    {
+    private func formatValueForLogging(_ value: Any, indentLevel: Int) -> String {
         let indent = String(repeating: "  ", count: indentLevel)
         let nextIndent = String(repeating: "  ", count: indentLevel + 1)
 
@@ -435,15 +530,23 @@ extension AsyncViewModelProtocol {
     }
 
     /// Effect 실행 로깅
-    public func logEffect(_ effect: AsyncEffect<Action, CancelID>) {
-        guard isLoggingEnabled, logLevel.rawValue <= LogLevel.debug.rawValue
-        else { return }
+    public func logEffect(
+        _ effect: AsyncEffect<Action, CancelID>,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        let viewModelName = String(describing: Self.self)
+        let effectDescription = String(describing: effect)
 
-        let logger = Logger(
-            subsystem: "com.jimmy.AsyncViewModel",
-            category: String(describing: Self.self)
+        // 전역 로거 사용
+        LoggerConfiguration.logger.logEffect(
+            effectDescription,
+            viewModel: viewModelName,
+            file: file,
+            function: function,
+            line: line
         )
-        logger.debug("Effect: \(String(describing: effect), privacy: .public)")
 
         // Effect 관찰자 호출
         effectObserver?(effect)
@@ -453,56 +556,46 @@ extension AsyncViewModelProtocol {
     public func logPerformance(
         _ operation: String,
         duration: TimeInterval,
-        level: LogLevel = .info
+        level: LogLevel = .info,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
     ) {
-        guard isLoggingEnabled, level.rawValue >= logLevel.rawValue else {
-            return
-        }
+        let viewModelName = String(describing: Self.self)
 
-        let logger = Logger(
-            subsystem: "com.jimmy.AsyncViewModel",
-            category: String(describing: Self.self)
+        // 전역 로거 사용
+        LoggerConfiguration.logger.logPerformance(
+            operation: operation,
+            duration: duration,
+            viewModel: viewModelName,
+            level: level,
+            file: file,
+            function: function,
+            line: line
         )
-        let message =
-            "Performance - \(operation): \(String(format: "%.3f", duration))s"
-
-        switch level {
-        case .debug:
-            logger.debug("\(message, privacy: .public)")
-        case .info:
-            logger.info("\(message, privacy: .public)")
-        case .warning:
-            logger.warning("\(message, privacy: .public)")
-        case .error:
-            logger.error("\(message, privacy: .public)")
-        }
 
         // 성능 관찰자 호출
         performanceObserver?(operation, duration)
     }
 
     /// 에러 로깅
-    public func logError(_ error: SendableError, level: LogLevel = .error) {
-        guard isLoggingEnabled, level.rawValue >= logLevel.rawValue else {
-            return
-        }
+    public func logError(
+        _ error: SendableError,
+        level: LogLevel = .error,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        let viewModelName = String(describing: Self.self)
 
-        let logger = Logger(
-            subsystem: "com.jimmy.AsyncViewModel",
-            category: String(describing: Self.self)
+        // 전역 로거 사용
+        LoggerConfiguration.logger.logError(
+            error,
+            viewModel: viewModelName,
+            level: level,
+            file: file,
+            function: function,
+            line: line
         )
-        let message =
-            "Error: \(error.localizedDescription) [\(error.domain):\(error.code)]"
-
-        switch level {
-        case .debug:
-            logger.debug("\(message, privacy: .public)")
-        case .info:
-            logger.info("\(message, privacy: .public)")
-        case .warning:
-            logger.warning("\(message, privacy: .public)")
-        case .error:
-            logger.error("\(message, privacy: .public)")
-        }
     }
 }
