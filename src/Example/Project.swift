@@ -32,6 +32,9 @@ let project = Project(
                 // AsyncViewModel (로컬 SPM 패키지)
                 .external(name: "AsyncViewModel"),
                 
+                // TraceKit (외부 SPM 패키지)
+                .external(name: "TraceKit"),
+                
                 // External Dependencies
                 .External.reactorKit,
                 .External.rxSwift,

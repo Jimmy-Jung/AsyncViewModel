@@ -25,12 +25,15 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../AsyncViewModelMacros"),
+        .package(url: "https://github.com/Jimmy-Jung/TraceKit", from: "1.1.1"),
     ],
     targets: [
         // Core 타겟 (내부 모듈)
         .target(
             name: "AsyncViewModelCore",
-            dependencies: [],
+            dependencies: [
+                .product(name: "TraceKit", package: "TraceKit"),
+            ],
             path: "Sources/Core"
         ),
         // Umbrella 타겟 (공개 모듈 - Core + Macros 통합)

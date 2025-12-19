@@ -10,6 +10,7 @@ import PackageDescription
         // .staticFramework: 정적 프레임워크 (릴리즈 시 최적화)
         productTypes: [
             "AsyncViewModel": .framework,  // 로컬 SPM 패키지 (Core + Macros 통합)
+            "TraceKit": .framework,  // 로깅 프레임워크
             "ReactorKit": .framework,
             "RxSwift": .framework,
             "RxCocoa": .framework,
@@ -31,6 +32,12 @@ let package = Package(
     dependencies: [
         // Local SPM Packages
         .package(path: "../../AsyncViewModel"),
+        
+        // Logging
+        .package(
+            url: "https://github.com/Jimmy-Jung/TraceKit",
+            from: "1.1.1"
+        ),
         
         // Architecture
         .package(
