@@ -55,8 +55,6 @@ import AsyncViewModelCore
 ///     public var effectQueue: [AsyncEffect<Action, CancelID>] = []
 ///     public var isProcessingEffects: Bool = false
 ///     public var actionObserver: ((Action) -> Void)? = nil
-///     public var isLoggingEnabled: Bool = true
-///     public var logLevel: LogLevel = .info
 ///     public var stateChangeObserver: ((State, State) -> Void)? = nil
 ///     public var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? = nil
 ///     public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
@@ -66,10 +64,16 @@ import AsyncViewModelCore
 /// extension MyViewModel: AsyncViewModelProtocol {}
 /// ```
 ///
-/// ## 매크로 파라미터
+/// ## 로깅 설정
 ///
-/// - `isLoggingEnabled`: 기본 로깅 활성화 여부 (기본값: `true`)
-/// - `logLevel`: 기본 로깅 레벨 (기본값: `.info`)
+/// 전역 로거를 통해 모든 ViewModel의 로깅을 제어합니다:
+///
+/// ```swift
+/// // AppDelegate에서 설정
+/// var logger = TraceKitViewModelLogger()
+/// logger.options.format = .compact
+/// LoggerConfiguration.setLogger(logger)
+/// ```
 ///
 /// ## 주의사항
 ///
@@ -84,19 +88,12 @@ import AsyncViewModelCore
     named(effectQueue),
     named(isProcessingEffects),
     named(actionObserver),
-    named(isLoggingEnabled),
-    named(logLevel),
     named(stateChangeObserver),
     named(effectObserver),
-    named(performanceObserver)
-)
+    named(performanceObserver))
 @attached(memberAttribute)
 @attached(extension, conformances: AsyncViewModelProtocol)
-public macro AsyncViewModel(
-    isLoggingEnabled: Bool = true,
-    logLevel: LogLevel = .info
-) = #externalMacro(
+public macro AsyncViewModel() = #externalMacro(
     module: "AsyncViewModelMacrosImpl",
     type: "AsyncViewModelMacroImpl"
 )
-
