@@ -283,12 +283,11 @@ final class ProductionViewModel: ObservableObject {
 AsyncViewModel은 **단방향 데이터 흐름**으로 동작합니다:
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'lineColor': '#e2e8f0', 'textColor': '#f8fafc'}}}%%
 flowchart LR
-    A[👤 Input]:::input -->|transform| B[⚙️ Action]:::action
-    B -->|reduce| C[📦 State]:::state
-    C -->|@Published| D[📱 View]:::view
-    B -->|Effect| E[🌐 비동기 작업]:::effect
+    A[Input]:::input -->|transform| B[Action]:::action
+    B -->|reduce| C[State]:::state
+    C -->|Published| D[View]:::view
+    B -->|Effect| E[Async Task]:::effect
     E -->|Action| B
     
     classDef input fill:#3b82f6,stroke:#60a5fa,color:#ffffff
@@ -310,11 +309,10 @@ flowchart LR
 ### 데이터 흐름
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'signalColor': '#e2e8f0', 'signalTextColor': '#f8fafc'}}}%%
 sequenceDiagram
-    participant V as 📱 View
-    participant VM as ⚙️ ViewModel
-    participant API as 🌐 API
+    participant V as View
+    participant VM as ViewModel
+    participant API as API
     
     V->>VM: send(.loadData)
     Note over VM: transform → [.loadData]
@@ -322,7 +320,7 @@ sequenceDiagram
     VM->>API: Effect.run
     API-->>VM: Result
     Note over VM: reduce → .dataLoaded<br/>state.data = result<br/>state.isLoading = false
-    VM-->>V: @Published 업데이트
+    VM-->>V: Published update
 ```
 
 ## 설치
