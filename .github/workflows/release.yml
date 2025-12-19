@@ -3,71 +3,55 @@ name: Release
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
+      - '*.*.*'
 
 jobs:
-  release:
+  create-release:
     name: Create Release
     runs-on: macos-15
-    permissions:
-      contents: write
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       
       - name: Show Xcode and Swift version
         run: |
           xcodebuild -version
           swift --version
       
-      - name: Get version from tag
+      - name: Build AsyncViewModel
+        run: swift build -c release
+      
+      - name: Test AsyncViewModel
+        run: swift test --parallel
+      
+      - name: Validate Package
+        run: |
+          swift package dump-package
+          swift package show-dependencies
+      
+      - name: Extract Version
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-      
-      - name: Validate AsyncViewModel Package
-        working-directory: src/AsyncViewModel
-        run: |
-          echo "=== Building AsyncViewModel ==="
-          swift build -c release
-          echo "=== Testing AsyncViewModel ==="
-          swift test
-      
-      - name: Validate AsyncViewModelMacros Package
-        working-directory: src/AsyncViewModelMacros
-        run: |
-          echo "=== Building AsyncViewModelMacros ==="
-          swift build -c release
-          echo "=== Testing AsyncViewModelMacros ==="
-          swift test
       
       - name: Generate Changelog
         id: changelog
         run: |
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -z "$PREVIOUS_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
-          else
-            CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
-          fi
+          VERSION="${{ steps.version.outputs.VERSION }}"
           echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "## What's Changed in $VERSION" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s (%h)" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
-          # PREVIOUS_TAG도 출력에 저장
-          echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
       
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.VERSION }}
-          name: Release ${{ steps.version.outputs.VERSION }}
+          name: AsyncViewModel ${{ steps.version.outputs.VERSION }}
           body: |
-            ## What's Changed
+            # AsyncViewModel ${{ steps.version.outputs.VERSION }}
             
             ${{ steps.changelog.outputs.CHANGELOG }}
             
@@ -75,52 +59,28 @@ jobs:
             
             ### Swift Package Manager
             
-            AsyncViewModel 프로젝트는 두 개의 패키지로 구성되어 있습니다:
-            
-            #### 1. AsyncViewModel (Core + Macros)
-            
             ```swift
             dependencies: [
-                .package(url: "https://github.com/${{ github.repository }}", from: "${{ steps.version.outputs.VERSION }}")
-            ]
-            
-            targets: [
-                .target(
-                    name: "YourTarget",
-                    dependencies: [
-                        .product(name: "AsyncViewModel", package: "AsyncViewModel")
-                    ]
-                )
+                .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel", from: "${{ steps.version.outputs.VERSION }}")
             ]
             ```
             
-            #### 2. AsyncViewModelMacros (Macros only)
+            ### Products
             
             ```swift
-            dependencies: [
-                .package(url: "https://github.com/${{ github.repository }}", from: "${{ steps.version.outputs.VERSION }}")
-            ]
-            
-            targets: [
-                .target(
-                    name: "YourTarget",
-                    dependencies: [
-                        .product(name: "AsyncViewModelMacros", package: "AsyncViewModel")
-                    ]
-                )
-            ]
+            .target(
+                name: "YourTarget",
+                dependencies: [
+                    .product(name: "AsyncViewModel", package: "AsyncViewModel")
+                ]
+            )
             ```
             
             ## Documentation
             
-            - [README](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.VERSION }}/README.md)
-            - [Architecture Guide](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.VERSION }}/Documents/01-Internal-Architecture.md)
-            - [Logger Configuration](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.VERSION }}/Documents/02-Logger-Configuration.md)
-            
-            ---
-            
-            **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.changelog.outputs.PREVIOUS_TAG }}...${{ steps.version.outputs.VERSION }}
+            - [GitHub README](https://github.com/Jimmy-Jung/AsyncViewModel)
+            - [API Documentation](https://jimmy-jung.github.io/AsyncViewModel/documentation/asyncviewmodel)
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.VERSION, '-alpha') || contains(steps.version.outputs.VERSION, '-beta') }}
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

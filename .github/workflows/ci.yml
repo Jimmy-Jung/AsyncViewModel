@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, feature/* ]
+    branches: [ main, develop, feature/*, release/* ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Job 1: AsyncViewModel 패키지 빌드 및 테스트
-  build-and-test-core:
+  # Job 1: 통합 빌드 및 테스트 (Core + Macros)
+  build-and-test:
     name: Build and Test AsyncViewModel
     runs-on: macos-15
     
@@ -27,30 +27,27 @@ jobs:
           swift --version
       
       - name: Build AsyncViewModel
-        working-directory: src/AsyncViewModel
         run: swift build -c release
       
       - name: Test AsyncViewModel
-        working-directory: src/AsyncViewModel
         run: swift test --enable-code-coverage --parallel
       
       - name: Generate Coverage Report
-        working-directory: src/AsyncViewModel
         run: |
           xcrun llvm-cov export -format="lcov" \
             .build/debug/AsyncViewModelPackageTests.xctest/Contents/MacOS/AsyncViewModelPackageTests \
             -instr-profile .build/debug/codecov/default.profdata > coverage.lcov
       
-      - name: Upload Coverage for AsyncViewModel
+      - name: Upload Coverage
         uses: codecov/codecov-action@v4
         with:
-          files: src/AsyncViewModel/coverage.lcov
+          files: coverage.lcov
           flags: asyncviewmodel
           fail_ci_if_error: false
 
-  # Job 2: AsyncViewModelMacros 패키지 빌드 및 테스트
-  build-and-test-macros:
-    name: Build and Test AsyncViewModelMacros
+  # Job 2: 패키지 검증
+  validate-package:
+    name: Validate Swift Package
     runs-on: macos-15
     
     steps:
@@ -62,57 +59,13 @@ jobs:
           xcodebuild -version
           swift --version
       
-      - name: Build AsyncViewModelMacros
-        working-directory: src/AsyncViewModelMacros
-        run: swift build -c release
-      
-      - name: Test AsyncViewModelMacros
-        working-directory: src/AsyncViewModelMacros
-        run: swift test --enable-code-coverage --parallel
-      
-      - name: Generate Coverage Report
-        working-directory: src/AsyncViewModelMacros
-        run: |
-          xcrun llvm-cov export -format="lcov" \
-            .build/debug/AsyncViewModelMacrosPackageTests.xctest/Contents/MacOS/AsyncViewModelMacrosPackageTests \
-            -instr-profile .build/debug/codecov/default.profdata > coverage.lcov
-      
-      - name: Upload Coverage for AsyncViewModelMacros
-        uses: codecov/codecov-action@v4
-        with:
-          files: src/AsyncViewModelMacros/coverage.lcov
-          flags: macros
-          fail_ci_if_error: false
-
-  # Job 3: 패키지 검증
-  validate-packages:
-    name: Validate Swift Packages
-    runs-on: macos-15
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Show Xcode and Swift version
-        run: |
-          xcodebuild -version
-          swift --version
-      
-      - name: Validate AsyncViewModel Package
-        working-directory: src/AsyncViewModel
+      - name: Validate Package
         run: |
           echo "=== Validating AsyncViewModel Package ==="
           swift package dump-package
           swift package show-dependencies
-      
-      - name: Validate AsyncViewModelMacros Package
-        working-directory: src/AsyncViewModelMacros
-        run: |
-          echo "=== Validating AsyncViewModelMacros Package ==="
-          swift package dump-package
-          swift package show-dependencies
 
-  # Job 4: 코드 스타일
+  # Job 3: 코드 스타일
   lint:
     name: SwiftLint
     runs-on: macos-15
@@ -131,7 +84,7 @@ jobs:
         run: |
           swiftlint --strict || echo "SwiftLint issues found, but continuing..."
 
-  # Job 5: Example 프로젝트 빌드 (Tuist)
+  # Job 4: Example 프로젝트 빌드 (Tuist)
   build-example:
     name: Build Example Project
     runs-on: macos-15
@@ -150,11 +103,11 @@ jobs:
           curl -Ls https://install.tuist.io | bash
       
       - name: Generate Xcode Project
-        working-directory: src/Example
+        working-directory: Projects/AsyncViewModelExample
         run: tuist generate
       
       - name: Build Example App
-        working-directory: src/Example
+        working-directory: Projects/AsyncViewModelExample
         run: |
           xcodebuild build \
             -scheme AsyncViewModelExample \
