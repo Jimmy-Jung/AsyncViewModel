@@ -4,7 +4,7 @@
 
 ### Swift Concurrency 기반 단방향 데이터 흐름 ViewModel 프레임워크
 
-[![Swift](https://img.shields.io/badge/Swift-6.1-orange.svg)](https://swift.org)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/Platform-iOS%2015%2B%20%7C%20macOS%2012%2B%20%7C%20tvOS%2015%2B%20%7C%20watchOS%208%2B-lightgrey.svg)](https://developer.apple.com/swift)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/Jimmy-Jung/AsyncViewModel)](https://github.com/Jimmy-Jung/AsyncViewModel/releases)
@@ -40,7 +40,7 @@ AsyncViewModel은 Swift Concurrency(async/await)를 활용한 현대적인 상�
 | 학습 곡선 | ⭐⭐ 보통 | ⭐⭐⭐ 어려움 | ⭐⭐ 보통 | ⭐⭐ 보통 |
 | Swift Concurrency | ✅ 네이티브 | ✅ 네이티브 | ❌ RxSwift | ❌ 없음 |
 | 보일러플레이트 | 적음 (매크로) | 많음 | 중간 | 많음 |
-| 외부 의존성 | TraceKit만 | TCA 라이브러리 | RxSwift | 없음 |
+| 외부 의존성 | 없음 | TCA 라이브러리 | RxSwift | 없음 |
 | 테스트 지원 | ✅ AsyncTestStore | ✅ TestStore | ✅ RxTest | ⚠️ 수동 |
 | UI 프레임워크 | SwiftUI, UIKit | 주로 SwiftUI | 주로 UIKit | 범용 |
 
@@ -372,9 +372,9 @@ dependencies: [
 
 ### 로깅 통합 (선택 사항)
 
-AsyncViewModel은 [TraceKit](https://github.com/Jimmy-Jung/TraceKit)을 로깅 라이브러리로 사용합니다.
+AsyncViewModel은 [TraceKit](https://github.com/Jimmy-Jung/TraceKit)을 로깅 라이브러리로 통합할 수 있습니다.
 
-> **참고**: TraceKit은 AsyncViewModel의 의존성으로 자동 포함되므로 별도 설치가 필요 없습니다.
+> **참고**: TraceKit은 선택적 통합이며, 별도로 설치해야 합니다.
 
 **TraceKit 주요 기능:**
 - 🎯 고급 버퍼링 및 샘플링
@@ -612,10 +612,10 @@ func testStateChange() async throws {
 - **TCA (The Composable Architecture)** - 비교용
 
 ```bash
-cd src/Example
+cd Projects/AsyncViewModelExample
 make setup
 make generate
-open AsyncViewModel.xcworkspace
+open AsyncViewModelExample.xcworkspace
 ```
 
 ### 실전 예제: 검색 기능
@@ -707,7 +707,7 @@ final class SearchViewModel: ObservableObject {
 
 ### 🎯 추가 리소스
 
-- 🎯 [예제 프로젝트 README](src/Example/README.md) - 예제 실행 가이드
+- 🎯 [예제 프로젝트 README](Projects/AsyncViewModelExample/README.md) - 예제 실행 가이드
 - 🧪 [테스트 가이드](docs/Testing.md) - 테스트 작성법 (작성 예정)
 - ⚡ [성능 최적화](docs/Performance.md) - 성능 팁 (작성 예정)
 
@@ -778,7 +778,7 @@ viewModel.isLoggingEnabled = false
 viewModel.logLevel = .error
 
 // 3. TraceKit 통합 (권장)
-// TraceKit은 AsyncViewModel에 기본 포함되어 있습니다
+// TraceKit을 별도로 설치한 경우 사용 가능
 Task { @TraceKitActor in
     await TraceKitBuilder.debug().buildAsShared()
 }
