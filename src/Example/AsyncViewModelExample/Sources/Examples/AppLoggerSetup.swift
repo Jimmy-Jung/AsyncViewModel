@@ -79,7 +79,7 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
 
 /// TraceKit을 사용하는 앱에서 AsyncViewModel 로거 설정 예시
 ///
-/// ## 기본 설정 (간결한 로그)
+/// ## 기본 설정 (간결한 로그, 스마트 임계값)
 /// ```swift
 /// Task { @TraceKitActor in
 ///     await TraceKitBuilder.debug().buildAsShared()
@@ -87,8 +87,22 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
 ///
 /// Task { @MainActor in
 ///     var logger = TraceKitViewModelLogger()
-///     logger.options.format = .compact               // 한 줄 요약
-///     logger.options.performanceThreshold = 0.010     // 10ms 이상만 로깅
+///     logger.options.format = .compact
+///     logger.options.performanceThreshold = nil // 스마트 임계값 사용 (기본값)
+///     ViewModelLoggerConfiguration.shared.setLogger(logger)
+/// }
+/// ```
+///
+/// ## 커스텀 임계값 설정
+/// ```swift
+/// Task { @MainActor in
+///     var logger = TraceKitViewModelLogger()
+///     logger.options.format = .standard
+///     // Action processing: 10ms 초과 시 경고
+///     logger.options.performanceThreshold = PerformanceThreshold(
+///         type: .actionProcessing,
+///         customThreshold: 0.010
+///     )
 ///     ViewModelLoggerConfiguration.shared.setLogger(logger)
 /// }
 /// ```
@@ -97,10 +111,10 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
 /// ```swift
 /// Task { @MainActor in
 ///     var logger = TraceKitViewModelLogger()
-///     logger.options.format = .standard               // 기본 포맷
-///     logger.options.performanceThreshold = 0.001     // 1ms 이상
-///     logger.options.showStateDiffOnly = true         // diff만 표시
-///     logger.options.groupEffects = true              // Effect 그룹화
+///     logger.options.format = .standard
+///     logger.options.performanceThreshold = nil // 스마트 임계값
+///     logger.options.showStateDiffOnly = true
+///     logger.options.groupEffects = true
 ///     ViewModelLoggerConfiguration.shared.setLogger(logger)
 /// }
 /// ```
@@ -109,11 +123,14 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
 /// ```swift
 /// Task { @MainActor in
 ///     var logger = TraceKitViewModelLogger()
-///     logger.options.format = .detailed               // 상세 포맷
-///     logger.options.performanceThreshold = 0.0       // 모든 성능 로그
-///     logger.options.showStateDiffOnly = false        // 전체 State 표시
-///     logger.options.groupEffects = false             // 개별 Effect 표시
-///     logger.options.showZeroPerformance = true       // 0초도 표시
+///     logger.options.format = .detailed
+///     logger.options.performanceThreshold = PerformanceThreshold(
+///         type: .custom,
+///         customThreshold: 0.0 // 모든 성능 로그
+///     )
+///     logger.options.showStateDiffOnly = false
+///     logger.options.groupEffects = false
+///     logger.options.showZeroPerformance = true
 ///     ViewModelLoggerConfiguration.shared.setLogger(logger)
 /// }
 /// ```
@@ -257,8 +274,15 @@ struct ExampleConsoleLogger: ViewModelLogger {
         function _: String,
         line _: Int
     ) {
-        // 임계값 체크
-        if !options.showZeroPerformance, duration < options.performanceThreshold {
+        let threshold: TimeInterval
+        if let performanceThreshold = options.performanceThreshold {
+            threshold = performanceThreshold.threshold
+        } else {
+            let operationType = PerformanceThreshold.infer(from: operation)
+            threshold = operationType.recommendedThreshold
+        }
+
+        if !options.showZeroPerformance, duration < threshold {
             return
         }
 
