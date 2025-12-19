@@ -335,7 +335,7 @@ sequenceDiagram
 | macOS | 12.0+ |
 | tvOS | 15.0+ |
 | watchOS | 8.0+ |
-| Swift | 6.1+ |
+| Swift | 6.0+ |
 | Xcode | 16.0+ |
 
 ### Swift Package Manager

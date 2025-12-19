@@ -21,8 +21,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      - name: Show Xcode and Swift version
+        run: |
+          xcodebuild -version
+          swift --version
       
       - name: Build AsyncViewModel
         working-directory: src/AsyncViewModel
@@ -55,8 +57,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      - name: Show Xcode and Swift version
+        run: |
+          xcodebuild -version
+          swift --version
       
       - name: Build AsyncViewModelMacros
         working-directory: src/AsyncViewModelMacros
@@ -89,8 +93,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      - name: Show Xcode and Swift version
+        run: |
+          xcodebuild -version
+          swift --version
       
       - name: Validate AsyncViewModel Package
         working-directory: src/AsyncViewModel
@@ -134,8 +140,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      - name: Show Xcode and Swift version
+        run: |
+          xcodebuild -version
+          swift --version
       
       - name: Install Tuist
         run: |
