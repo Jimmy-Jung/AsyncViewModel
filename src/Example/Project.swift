@@ -4,6 +4,16 @@ import ProjectDescriptionHelpers
 let project = Project(
     name: "AsyncViewModelExample",
     targets: [
+        // AsyncViewModel Local Target
+        .target(
+            name: "AsyncViewModel",
+            destinations: .iOS,
+            product: .framework,
+            bundleId: "io.tuist.AsyncViewModel",
+            deploymentTargets: .iOS("15.0"),
+            sources: ["../AsyncViewModel/Sources/**"],
+            dependencies: []
+        ),
         .target(
             name: "AsyncViewModelExample",
             destinations: .iOS,
@@ -29,8 +39,8 @@ let project = Project(
             sources: ["AsyncViewModelExample/Sources/**"],
             resources: ["AsyncViewModelExample/Resources/**"],
             dependencies: [
-                // AsyncViewModel (로컬 SPM 패키지)
-                .external(name: "AsyncViewModel"),
+                // AsyncViewModel (로컬 타겟)
+                .target(name: "AsyncViewModel"),
                 
                 // TraceKit (외부 SPM 패키지)
                 .external(name: "TraceKit"),
