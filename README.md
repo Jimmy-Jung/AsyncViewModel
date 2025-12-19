@@ -196,7 +196,7 @@ final class MyViewModel: ObservableObject {
 | `isProcessingEffects` | `Bool` | Effect 처리 상태 플래그 |
 | `actionObserver` | `((Action) -> Void)?` | 액션 관찰 훅 (테스트/디버깅) |
 | `isLoggingEnabled` | `Bool` | 로깅 활성화 플래그 |
-| `logLevel` | `LogLevel` | 로깅 레벨 (.debug, .info, .warning, .error) |
+| `logLevel` | `LogLevel` | 로깅 레벨 (.verbose, .debug, .info, .warning, .error, .fatal) |
 | `stateChangeObserver` | `((State, State) -> Void)?` | 상태 변경 관찰 훅 |
 | `effectObserver` | `((AsyncEffect) -> Void)?` | Effect 실행 관찰 훅 |
 | `performanceObserver` | `((String, TimeInterval) -> Void)?` | 성능 메트릭 관찰 훅 |
@@ -205,10 +205,12 @@ final class MyViewModel: ObservableObject {
 
 ```swift
 public enum LogLevel: Int {
-    case debug = 0    // 모든 로그 (액션, 상태, Effect, 성능)
-    case info = 1     // 액션, 상태 변경
-    case warning = 2  // 경고
-    case error = 3    // 에러만
+    case verbose = 0  // 가장 상세한 추적 로그 📝
+    case debug = 1    // 디버깅 목적의 로그 🔍
+    case info = 2     // 일반 정보성 로그 ℹ️
+    case warning = 3  // 잠재적 문제 경고 ⚠️
+    case error = 4    // 오류 발생 ❌
+    case fatal = 5    // 치명적 오류 💀
 }
 ```
 
@@ -217,9 +219,14 @@ public enum LogLevel: Int {
 ```swift
 import AsyncViewModel
 
-@AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
+@AsyncViewModel(isLoggingEnabled: true, logLevel: .verbose)
 final class DebugViewModel: ObservableObject {
-    // 개발 중: 모든 로그 출력
+    // 개발 중: 가장 상세한 로그 출력
+}
+
+@AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
+final class DevelopmentViewModel: ObservableObject {
+    // 개발 중: 디버그 레벨 이상 로그 출력
 }
 
 @AsyncViewModel(isLoggingEnabled: true, logLevel: .error)
@@ -227,6 +234,8 @@ final class ProductionViewModel: ObservableObject {
     // 프로덕션: 에러만 로깅
 }
 ```
+
+> **Note**: LogLevel은 TraceKit의 TraceLevel과 동일한 구조를 가지고 있습니다.
 
 ## 핵심 개념
 
@@ -305,6 +314,19 @@ dependencies: [
 2. URL 입력: `https://github.com/yourusername/AsyncViewModel.git`
 3. **Add Package**
 4. **`AsyncViewModel`** 선택 (권장 - Core + Macros 포함)
+
+### 로깅 라이브러리 (TraceKit)
+
+AsyncViewModel은 [TraceKit](https://github.com/Jimmy-Jung/TraceKit) (v1.1.1)을 로깅 라이브러리로 사용합니다.
+
+TraceKit은 자동으로 의존성으로 포함되므로 별도 설치가 필요 없습니다.
+
+TraceKit 기능:
+- 고급 버퍼링 및 샘플링
+- 민감정보 자동 마스킹
+- 크래시 로그 보존
+- 성능 측정 지원
+- 다양한 Destination (Console, OSLog, File, 외부 서비스)
 
 ### 요구사항
 
@@ -681,14 +703,25 @@ final class SearchViewModel: ObservableObject {
 ```swift
 import AsyncViewModel
 
-// 매크로 파라미터로 설정
+// 1. 매크로 파라미터로 설정
 @AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
 
-// 또는 런타임에 변경
+// 2. 런타임에 변경
 viewModel.isLoggingEnabled = false
 viewModel.logLevel = .error
 
-// 관찰자 훅 사용
+// 3. TraceKit 통합 (권장)
+// TraceKit은 AsyncViewModel에 기본 포함되어 있습니다
+Task { @TraceKitActor in
+    await TraceKitBuilder.debug().buildAsShared()
+}
+
+Task { @MainActor in
+    let logger = TraceKitViewModelLogger()
+    LoggerConfiguration.setLogger(logger)
+}
+
+// 4. 관찰자 훅 사용
 viewModel.actionObserver = { action in
     print("Action:", action)
 }
@@ -696,6 +729,8 @@ viewModel.performanceObserver = { operation, duration in
     print("\(operation): \(duration)s")
 }
 ```
+
+자세한 내용은 [LOGGING_ARCHITECTURE.md](LOGGING_ARCHITECTURE.md)와 [QUICK_START_LOGGING.md](QUICK_START_LOGGING.md)를 참고하세요.
 
 ### Q: import 방식의 차이는?
 
