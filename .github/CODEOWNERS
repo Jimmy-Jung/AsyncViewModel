@@ -1,0 +1,23 @@
+# Code Owners for AsyncViewModel
+
+# 전체 프로젝트 기본 리뷰어
+* @Jimmy-Jung
+
+# AsyncViewModel Core 패키지
+/src/AsyncViewModel/ @Jimmy-Jung
+
+# AsyncViewModelMacros 패키지
+/src/AsyncViewModelMacros/ @Jimmy-Jung
+
+# 문서
+/Documents/ @Jimmy-Jung
+/README.md @Jimmy-Jung
+
+# GitHub 설정
+/.github/ @Jimmy-Jung
+
+# CI/CD
+/.github/workflows/ @Jimmy-Jung
+
+# Example 프로젝트
+/src/Example/ @Jimmy-Jung

@@ -1,0 +1,32 @@
+# Codecov Configuration
+
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 1%
+    patch:
+      default:
+        target: 80%
+        threshold: 1%
+
+comment:
+  layout: "header, diff, files, footer"
+  behavior: default
+  require_changes: false
+
+flags:
+  asyncviewmodel:
+    paths:
+      - src/AsyncViewModel/Sources/
+  macros:
+    paths:
+      - src/AsyncViewModelMacros/Sources/
+
+ignore:
+  - "src/AsyncViewModel/Tests"
+  - "src/AsyncViewModelMacros/Tests"
+  - "src/Example"
+  - "**/*.pb.swift"
+  - "**/*.generated.swift"

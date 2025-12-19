@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, feature/*, release/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Job 1: 통합 빌드 및 테스트 (Core + Macros)
+  build-and-test:
+    name: Build and Test AsyncViewModel
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Show Xcode and Swift version
+        run: |
+          xcodebuild -version
+          swift --version
+      
+      - name: Build AsyncViewModel
+        run: swift build -c release
+      
+      - name: Test AsyncViewModel
+        run: swift test --enable-code-coverage --parallel
+      
+      - name: Generate Coverage Report
+        run: |
+          xcrun llvm-cov export -format="lcov" \
+            .build/debug/AsyncViewModelPackageTests.xctest/Contents/MacOS/AsyncViewModelPackageTests \
+            -instr-profile .build/debug/codecov/default.profdata > coverage.lcov
+      
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.lcov
+          flags: asyncviewmodel
+          fail_ci_if_error: false
+
+  # Job 2: 패키지 검증
+  validate-package:
+    name: Validate Swift Package
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Show Xcode and Swift version
+        run: |
+          xcodebuild -version
+          swift --version
+      
+      - name: Validate Package
+        run: |
+          echo "=== Validating AsyncViewModel Package ==="
+          swift package dump-package
+          swift package show-dependencies
+
+  # Job 3: 코드 스타일
+  lint:
+    name: SwiftLint
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install SwiftLint
+        run: |
+          if ! which swiftlint >/dev/null; then
+            brew install swiftlint
+          fi
+      
+      - name: SwiftLint
+        run: |
+          swiftlint --strict || echo "SwiftLint issues found, but continuing..."
+
+  # Job 4: Example 프로젝트 빌드 (Tuist)
+  build-example:
+    name: Build Example Project
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Show Xcode and Swift version
+        run: |
+          xcodebuild -version
+          swift --version
+      
+      - name: Install Tuist
+        run: |
+          curl -Ls https://install.tuist.io | bash
+      
+      - name: Generate Xcode Project
+        working-directory: Projects/AsyncViewModelExample
+        run: tuist generate
+      
+      - name: Build Example App
+        working-directory: Projects/AsyncViewModelExample
+        run: |
+          xcodebuild build \
+            -scheme AsyncViewModelExample \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty || true

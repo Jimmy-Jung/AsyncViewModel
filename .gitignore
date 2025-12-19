@@ -1,0 +1,94 @@
+### macOS ###
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+
+### Xcode ###
+## User settings
+xcuserdata/
+
+## Compatibility with Xcode 8 and earlier
+*.xcscmblueprint
+*.xccheckout
+
+## Compatibility with Xcode 3 and earlier
+build/
+DerivedData/
+index-build/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+## Xcode Patch
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+/*.gcno
+
+
+### Swift Package Manager ###
+.build/
+.swiftpm/
+*.xcodeproj
+*.xcworkspace
+
+
+### Tuist ###
+# Tuist 생성 파일 (절대 커밋하지 말 것)
+*.xcodeproj
+*.xcworkspace
+Derived/
+graph.dot
+graph.json
+
+# Tuist 캐시
+.tuist-cache/
+*.tuist-cache/
+.tuist-bin/
+
+# Tuist 의존성
+Tuist/.build/
+Tuist/Dependencies/
+Tuist/Dependencies.lock
+
+# Tuist 빌드 산출물
+.build/
+
+
+### IDE ###
+# Cursor
+.cursor/
+
+# Obsidian
+.obsidian/

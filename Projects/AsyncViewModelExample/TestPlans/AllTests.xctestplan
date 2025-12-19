@@ -1,0 +1,37 @@
+{
+  "configurations" : [
+    {
+      "id" : "Default",
+      "name" : "Configuration 1",
+      "options" : {
+        "codeCoverage" : {
+          "targets" : [
+            {
+              "containerPath" : "container:AsyncViewModelExample.xcodeproj",
+              "identifier" : "AsyncViewModelExample",
+              "name" : "AsyncViewModelExample"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:AsyncViewModelExample.xcodeproj",
+      "identifier" : "AsyncViewModelExample",
+      "name" : "AsyncViewModelExample"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:AsyncViewModelExample.xcodeproj",
+        "identifier" : "AsyncViewModelExampleTests",
+        "name" : "AsyncViewModelExampleTests"
+      }
+    }
+  ],
+  "version" : 1
+}
