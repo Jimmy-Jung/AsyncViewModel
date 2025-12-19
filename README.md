@@ -812,7 +812,7 @@ AsyncViewModel은 **단일 통합 모듈**로 사용하는 것이 가장 간단�
 
 AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환영합니다!
 
-### v1.0.0 (현재)
+### v1.1.0 (현재)
 - ✅ 핵심 아키텍처 구현
 - ✅ Swift 6 Concurrency 지원
 - ✅ @AsyncViewModel 매크로
@@ -820,14 +820,14 @@ AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환�
 - ✅ TraceKit 로깅 통합
 - ✅ 완전한 문서화
 
-### v1.1.0 (계획 중)
+### v1.2.0 (계획 중)
 - [ ] SwiftUI Preview 지원 개선
 - [ ] 추가 Effect 타입 (retry, timeout)
 - [ ] 성능 최적화
 - [ ] 더 많은 예제 추가
 - [ ] 영문 문서
 
-### v1.2.0 (검토 중)
+### v1.3.0 (검토 중)
 - [ ] Observation 프레임워크 지원
 - [ ] 플러그인 시스템
 - [ ] 시각화 도구
@@ -867,7 +867,7 @@ AsyncViewModel은 오픈소스 프로젝트이며, 여러분의 기여를 환영
 
 - 💬 [GitHub Discussions](https://github.com/Jimmy-Jung/AsyncViewModel/discussions) - 질문, 아이디어, 피드백
 - 🐛 [Issues](https://github.com/Jimmy-Jung/AsyncViewModel/issues) - 버그 리포트, 기능 제안
-- 📧 Email: jimmy.developer@example.com
+- 📧 Email: joony300@gmail.com
 
 ### 행동 강령
 
@@ -917,7 +917,7 @@ AsyncViewModel은 다음 프로젝트들에서 영감을 받았습니다:
 iOS Developer from Seoul, South Korea 🇰🇷
 
 - GitHub: [@Jimmy-Jung](https://github.com/Jimmy-Jung)
-- Email: jimmy.developer@example.com
+- Email: joony300@gmail.com
 
 ## 후원
 
