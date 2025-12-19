@@ -7,6 +7,7 @@
 
 @testable import AsyncViewModelCore
 import Combine
+import Foundation
 import Testing
 
 // MARK: - Test ViewModels
@@ -129,8 +130,15 @@ final class MockLogger: ViewModelLogger {
         function _: String,
         line _: Int
     ) {
-        // 임계값 체크 적용
-        if !options.showZeroPerformance, duration < options.performanceThreshold {
+        let threshold: TimeInterval
+        if let performanceThreshold = options.performanceThreshold {
+            threshold = performanceThreshold.threshold
+        } else {
+            let operationType = PerformanceThreshold.infer(from: operation)
+            threshold = operationType.recommendedThreshold
+        }
+
+        if !options.showZeroPerformance, duration < threshold {
             return
         }
         loggedPerformance.append((operation, duration))
@@ -256,7 +264,10 @@ struct ViewModelLoggerTests {
     @Test("성능 로그 임계값이 작동함")
     func performanceThresholdWorks() async {
         let mockLogger = MockLogger()
-        mockLogger.options.performanceThreshold = 1.0 // 1초 이상만 로깅
+        mockLogger.options.performanceThreshold = PerformanceThreshold(
+            type: .custom,
+            customThreshold: 1.0
+        )
         LoggerConfiguration.setLogger(mockLogger)
 
         let viewModel = TestViewModel()
