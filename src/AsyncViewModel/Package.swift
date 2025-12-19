@@ -12,15 +12,10 @@ let package = Package(
         .watchOS(.v8),
     ],
     products: [
-        // Core library (내부 모듈)
-        .library(
-            name: "AsyncViewModelCore",
-            targets: ["AsyncViewModelCore"]
-        ),
-        // 단일 Umbrella library (코어 + 매크로 통합)
+        // AsyncViewModel 라이브러리 (AsyncViewModelCore를 노출)
         .library(
             name: "AsyncViewModel",
-            targets: ["AsyncViewModel"]
+            targets: ["AsyncViewModelCore"]
         ),
     ],
     dependencies: [
@@ -28,20 +23,11 @@ let package = Package(
         // 사용자는 필요에 따라 두 패키지를 모두 의존성에 추가
     ],
     targets: [
-        // Core 타겟 (내부 모듈)
+        // Core 타겟 (AsyncViewModel 제품명으로 노출)
         .target(
             name: "AsyncViewModelCore",
             dependencies: [],
-            path: "Sources",
-            exclude: ["AsyncViewModel"]
-        ),
-        // Umbrella 타겟 (공개 모듈 - Core만 포함, Macros는 별도 패키지)
-        .target(
-            name: "AsyncViewModel",
-            dependencies: [
-                "AsyncViewModelCore",
-            ],
-            path: "Sources/AsyncViewModel"
+            path: "Sources"
         ),
         .testTarget(
             name: "AsyncViewModelTests",
