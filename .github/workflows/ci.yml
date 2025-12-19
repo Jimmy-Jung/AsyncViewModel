@@ -100,7 +100,7 @@ jobs:
       
       - name: Install Tuist
         run: |
-          brew install --formula tuist@4
+          brew install tuist
       
       - name: Generate Xcode Project
         working-directory: Projects/AsyncViewModelExample
