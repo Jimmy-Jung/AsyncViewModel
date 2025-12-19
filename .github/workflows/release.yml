@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: macos-15
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Validate AsyncViewModel Package
+        working-directory: src/AsyncViewModel
+        run: |
+          echo "=== Building AsyncViewModel ==="
+          swift build -c release
+          echo "=== Testing AsyncViewModel ==="
+          swift test
+      
+      - name: Validate AsyncViewModelMacros Package
+        working-directory: src/AsyncViewModelMacros
+        run: |
+          echo "=== Building AsyncViewModelMacros ==="
+          swift build -c release
+          echo "=== Testing AsyncViewModelMacros ==="
+          swift test
+      
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # PREVIOUS_TAG도 출력에 저장
+          echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: Release ${{ steps.version.outputs.VERSION }}
+          body: |
+            ## What's Changed
+            
+            ${{ steps.changelog.outputs.CHANGELOG }}
+            
+            ## Installation
+            
+            ### Swift Package Manager
+            
+            AsyncViewModel 프로젝트는 두 개의 패키지로 구성되어 있습니다:
+            
+            #### 1. AsyncViewModel (Core + Macros)
+            
+            ```swift
+            dependencies: [
+                .package(url: "https://github.com/${{ github.repository }}", from: "${{ steps.version.outputs.VERSION }}")
+            ]
+            
+            targets: [
+                .target(
+                    name: "YourTarget",
+                    dependencies: [
+                        .product(name: "AsyncViewModel", package: "AsyncViewModel")
+                    ]
+                )
+            ]
+            ```
+            
+            #### 2. AsyncViewModelMacros (Macros only)
+            
+            ```swift
+            dependencies: [
+                .package(url: "https://github.com/${{ github.repository }}", from: "${{ steps.version.outputs.VERSION }}")
+            ]
+            
+            targets: [
+                .target(
+                    name: "YourTarget",
+                    dependencies: [
+                        .product(name: "AsyncViewModelMacros", package: "AsyncViewModel")
+                    ]
+                )
+            ]
+            ```
+            
+            ## Documentation
+            
+            - [README](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.VERSION }}/README.md)
+            - [Architecture Guide](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.VERSION }}/Documents/01-Internal-Architecture.md)
+            - [Logger Configuration](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.VERSION }}/Documents/02-Logger-Configuration.md)
+            
+            ---
+            
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.changelog.outputs.PREVIOUS_TAG }}...${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, '-alpha') || contains(steps.version.outputs.VERSION, '-beta') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

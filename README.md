@@ -1,33 +1,74 @@
+<div align="center">
+
 # AsyncViewModel
 
-> Swift Concurrency 기반 단방향 데이터 흐름 ViewModel 프레임워크
+### Swift Concurrency 기반 단방향 데이터 흐름 ViewModel 프레임워크
 
 [![Swift](https://img.shields.io/badge/Swift-6.1-orange.svg)](https://swift.org)
-[![Platform](https://img.shields.io/badge/Platform-iOS%2015%2B%20%7C%20macOS%2012%2B-lightgrey.svg)](https://swift.org)
+[![Platform](https://img.shields.io/badge/Platform-iOS%2015%2B%20%7C%20macOS%2012%2B%20%7C%20tvOS%2015%2B%20%7C%20watchOS%208%2B-lightgrey.svg)](https://developer.apple.com/swift)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Jimmy-Jung/AsyncViewModel)](https://github.com/Jimmy-Jung/AsyncViewModel/releases)
+[![CI](https://github.com/Jimmy-Jung/AsyncViewModel/actions/workflows/ci.yml/badge.svg)](https://github.com/Jimmy-Jung/AsyncViewModel/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Jimmy-Jung/AsyncViewModel/branch/main/graph/badge.svg)](https://codecov.io/gh/Jimmy-Jung/AsyncViewModel)
+[![SPM Compatible](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://swift.org/package-manager)
 
-## 특징
+[English](#) | [한국어](#-korean)
 
-- ✅ **단방향 데이터 흐름**: 예측 가능한 상태 관리
-- ⚡ **Swift Concurrency 네이티브**: async/await 완벽 지원
-- 🧪 **테스트 용이성**: AsyncTestStore로 간편한 테스트
-- 🔄 **Effect 시스템**: 선언적 비동기 작업 처리
-- 🪄 **매크로 지원**: 보일러플레이트 코드 자동 생성
-- 📦 **제로 의존성**: 외부 라이브러리 불필요
-- 🎯 **타입 세이프**: Equatable & Sendable 보장
+</div>
+
+---
+
+## 왜 AsyncViewModel인가?
+
+AsyncViewModel은 Swift Concurrency(async/await)를 활용한 현대적인 상태 관리 프레임워크입니다.
+
+### 주요 특징
+
+- ✅ **단방향 데이터 흐름**: 예측 가능한 상태 관리로 버그 감소
+- ⚡ **Swift Concurrency 네이티브**: async/await 완벽 지원으로 간결한 비동기 코드
+- 🧪 **테스트 용이성**: AsyncTestStore로 비동기 로직을 쉽게 테스트
+- 🔄 **선언적 Effect 시스템**: 복잡한 비동기 작업을 선언적으로 표현
+- 🪄 **매크로 지원**: 보일러플레이트 코드 자동 생성으로 생산성 향상
+- 📦 **제로 의존성**: 외부 라이브러리 불필요 (로깅을 위한 TraceKit 포함)
+- 🎯 **타입 세이프**: Equatable & Sendable 보장으로 컴파일 타임 안정성
+- 🔌 **유연한 아키텍처**: SwiftUI, UIKit 모두 지원
+
+### 다른 프레임워크와 비교
+
+| 특징 | AsyncViewModel | TCA | ReactorKit | Redux |
+|------|----------------|-----|------------|-------|
+| 학습 곡선 | ⭐⭐ 보통 | ⭐⭐⭐ 어려움 | ⭐⭐ 보통 | ⭐⭐ 보통 |
+| Swift Concurrency | ✅ 네이티브 | ✅ 네이티브 | ❌ RxSwift | ❌ 없음 |
+| 보일러플레이트 | 적음 (매크로) | 많음 | 중간 | 많음 |
+| 외부 의존성 | TraceKit만 | TCA 라이브러리 | RxSwift | 없음 |
+| 테스트 지원 | ✅ AsyncTestStore | ✅ TestStore | ✅ RxTest | ⚠️ 수동 |
+| UI 프레임워크 | SwiftUI, UIKit | 주로 SwiftUI | 주로 UIKit | 범용 |
+
+### 누가 사용하면 좋을까요?
+
+- ✅ Swift Concurrency를 활용하고 싶은 개발자
+- ✅ 예측 가능한 상태 관리가 필요한 프로젝트
+- ✅ 테스트 가능한 아키텍처를 원하는 팀
+- ✅ 보일러플레이트 코드를 줄이고 싶은 개발자
+- ✅ SwiftUI 또는 UIKit 프로젝트 모두 지원 필요
 
 ## 목차
 
+- [왜 AsyncViewModel인가?](#왜-asyncviewmodel인가)
 - [빠른 시작](#빠른-시작)
+- [설치](#설치)
 - [매크로로 간편하게](#매크로로-간편하게)
 - [핵심 개념](#핵심-개념)
-- [설치](#설치)
 - [기본 사용법](#기본-사용법)
 - [Effect 가이드](#effect-가이드)
 - [테스트](#테스트)
 - [예제](#예제)
 - [문서](#문서)
+- [로드맵](#로드맵)
+- [기여하기](#기여하기)
+- [커뮤니티](#커뮤니티)
 - [라이선스](#라이선스)
+- [감사의 말](#감사의-말)
 
 ## 빠른 시작
 
@@ -286,11 +327,24 @@ sequenceDiagram
 
 ## 설치
 
+### 요구사항
+
+| 플랫폼 | 최소 버전 |
+|--------|----------|
+| iOS | 15.0+ |
+| macOS | 12.0+ |
+| tvOS | 15.0+ |
+| watchOS | 8.0+ |
+| Swift | 6.1+ |
+| Xcode | 16.0+ |
+
 ### Swift Package Manager
+
+#### Package.swift에 추가
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/AsyncViewModel.git", from: "1.0.0")
+    .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel.git", from: "1.0.0")
 ]
 ```
 
@@ -300,7 +354,7 @@ dependencies: [
 .target(
     name: "YourTarget",
     dependencies: [
-        // 권장: 통합 모듈 (Core + Macros 포함)
+        // ✅ 권장: 통합 모듈 (Core + Macros 포함)
         .product(name: "AsyncViewModel", package: "AsyncViewModel"),
         
         // 또는 매크로 없이 Core만 사용
@@ -309,30 +363,27 @@ dependencies: [
 )
 ```
 
-또는 Xcode에서:
+#### Xcode에서 추가
+
 1. **File → Add Package Dependencies...**
-2. URL 입력: `https://github.com/yourusername/AsyncViewModel.git`
-3. **Add Package**
+2. 검색창에 입력: `https://github.com/Jimmy-Jung/AsyncViewModel.git`
+3. **Add Package** 클릭
 4. **`AsyncViewModel`** 선택 (권장 - Core + Macros 포함)
 
-### 로깅 라이브러리 (TraceKit)
+### 로깅 통합 (선택 사항)
 
-AsyncViewModel은 [TraceKit](https://github.com/Jimmy-Jung/TraceKit) (v1.1.1)을 로깅 라이브러리로 사용합니다.
+AsyncViewModel은 [TraceKit](https://github.com/Jimmy-Jung/TraceKit)을 로깅 라이브러리로 사용합니다.
 
-TraceKit은 자동으로 의존성으로 포함되므로 별도 설치가 필요 없습니다.
+> **참고**: TraceKit은 AsyncViewModel의 의존성으로 자동 포함되므로 별도 설치가 필요 없습니다.
 
-TraceKit 기능:
-- 고급 버퍼링 및 샘플링
-- 민감정보 자동 마스킹
-- 크래시 로그 보존
-- 성능 측정 지원
-- 다양한 Destination (Console, OSLog, File, 외부 서비스)
+**TraceKit 주요 기능:**
+- 🎯 고급 버퍼링 및 샘플링
+- 🔒 민감정보 자동 마스킹
+- 💾 크래시 로그 보존
+- ⚡ 성능 측정 지원
+- 📤 다양한 Destination (Console, OSLog, File, 외부 서비스)
 
-### 요구사항
-
-- iOS 15.0+ / macOS 12.0+ / tvOS 15.0+ / watchOS 8.0+
-- Swift 6.1+
-- Xcode 16.0+ (매크로 지원)
+TraceKit 통합 방법은 [Logger Configuration 가이드](Documents/02-Logger-Configuration.md)를 참고하세요.
 
 ## 기본 사용법
 
@@ -757,28 +808,134 @@ viewModel.performanceObserver = { operation, duration in
 
 AsyncViewModel은 **단일 통합 모듈**로 사용하는 것이 가장 간단합니다!
 
+## 로드맵
+
+AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환영합니다!
+
+### v1.0.0 (현재)
+- ✅ 핵심 아키텍처 구현
+- ✅ Swift 6 Concurrency 지원
+- ✅ @AsyncViewModel 매크로
+- ✅ AsyncTestStore 테스팅 유틸리티
+- ✅ TraceKit 로깅 통합
+- ✅ 완전한 문서화
+
+### v1.1.0 (계획 중)
+- [ ] SwiftUI Preview 지원 개선
+- [ ] 추가 Effect 타입 (retry, timeout)
+- [ ] 성능 최적화
+- [ ] 더 많은 예제 추가
+- [ ] 영문 문서
+
+### v1.2.0 (검토 중)
+- [ ] Observation 프레임워크 지원
+- [ ] 플러그인 시스템
+- [ ] 시각화 도구
+- [ ] VS Code 확장
+
+제안이나 아이디어가 있으신가요? [Discussion](https://github.com/Jimmy-Jung/AsyncViewModel/discussions)에서 공유해주세요!
+
 ## 기여하기
 
-Pull Request를 환영합니다! 🎉
+AsyncViewModel은 오픈소스 프로젝트이며, 여러분의 기여를 환영합니다! 🎉
 
-1. Fork
-2. Feature 브랜치 생성 (`git checkout -b feature/amazing`)
-3. 변경사항 커밋 (`git commit -m 'Add amazing feature'`)
-4. 푸시 (`git push origin feature/amazing`)
-5. Pull Request 생성
+### 기여 방법
+
+1. **이슈 확인**: [Issues](https://github.com/Jimmy-Jung/AsyncViewModel/issues)에서 해결하고 싶은 문제 찾기
+2. **Fork**: 저장소를 Fork합니다
+3. **브랜치 생성**: `git checkout -b feature/amazing-feature`
+4. **변경사항 작성**: 코드 작성 및 테스트 추가
+5. **커밋**: `git commit -m 'feat: add amazing feature'`
+6. **푸시**: `git push origin feature/amazing-feature`
+7. **Pull Request**: GitHub에서 PR 생성
+
+### 기여 가이드
+
+자세한 기여 방법은 [CONTRIBUTING.md](.github/CONTRIBUTING.md)를 참고해주세요:
+- 코딩 규칙
+- 커밋 컨벤션
+- PR 프로세스
+- 테스트 작성 가이드
+
+### 좋은 첫 이슈
+
+처음 기여하시나요? [`good first issue`](https://github.com/Jimmy-Jung/AsyncViewModel/labels/good%20first%20issue) 라벨이 붙은 이슈부터 시작해보세요!
+
+## 커뮤니티
+
+### 소통 채널
+
+- 💬 [GitHub Discussions](https://github.com/Jimmy-Jung/AsyncViewModel/discussions) - 질문, 아이디어, 피드백
+- 🐛 [Issues](https://github.com/Jimmy-Jung/AsyncViewModel/issues) - 버그 리포트, 기능 제안
+- 📧 Email: jimmy.developer@example.com
+
+### 행동 강령
+
+AsyncViewModel은 [Contributor Covenant](https://www.contributor-covenant.org/) 행동 강령을 따릅니다. 모든 참여자는 서로를 존중하고 배려해야 합니다.
 
 ## 라이선스
 
-MIT License - 자유롭게 사용하세요!
+AsyncViewModel은 [MIT License](LICENSE)로 배포됩니다.
+
+```
+MIT License
+
+Copyright (c) 2024 Jimmy Jung
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## 감사의 말
+
+AsyncViewModel은 다음 프로젝트들에서 영감을 받았습니다:
+
+- [TCA (The Composable Architecture)](https://github.com/pointfreeco/swift-composable-architecture) - 단방향 데이터 흐름 아키텍처
+- [ReactorKit](https://github.com/ReactorKit/ReactorKit) - Reactive 프로그래밍 패턴
+- [Redux](https://redux.js.org/) - 예측 가능한 상태 관리
+
+그리고 프로젝트에 기여해주신 모든 분들께 감사드립니다! 🙏
 
 ## 만든 사람
 
-jimmy (정준영)
+**Jimmy Jung (정준영)**  
+iOS Developer from Seoul, South Korea 🇰🇷
 
-**이 프레임워크가 도움이 되었나요?** ⭐ Star를 눌러주세요!
+- GitHub: [@Jimmy-Jung](https://github.com/Jimmy-Jung)
+- Email: jimmy.developer@example.com
+
+## 후원
+
+AsyncViewModel이 도움이 되었나요? ⭐ Star를 눌러주세요!
+
+프로젝트 개발을 지원하고 싶으시다면:
+- ⭐ GitHub Star
+- 🐛 버그 리포트 및 기능 제안
+- 📝 문서 개선
+- 💻 코드 기여
+- 📢 프로젝트 공유
 
 ---
 
-<p align="center">
-Made with ❤️ and ☕ in Korea
-</p>
+<div align="center">
+
+**Made with ❤️ and ☕ in Seoul, Korea**
+
+[⬆ 맨 위로](#asyncviewmodel)
+
+</div>

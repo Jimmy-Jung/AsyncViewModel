@@ -1,0 +1,101 @@
+# SwiftLint Configuration for AsyncViewModel
+
+# 포함할 경로
+included:
+  - src/AsyncViewModel/Sources
+  - src/AsyncViewModelMacros/Sources
+  - src/Example/AsyncViewModelExample/Sources
+
+# 제외할 경로
+excluded:
+  - .build
+  - .swiftpm
+  - Packages
+  - src/Example/.build
+  - src/Example/Tuist
+  - src/AsyncViewModel/Tests
+  - src/AsyncViewModelMacros/Tests
+
+# 비활성화할 규칙
+disabled_rules:
+  - trailing_whitespace
+  - todo
+  - line_length
+  - type_body_length
+  - file_length
+  - function_body_length
+  - cyclomatic_complexity
+  - nesting
+
+# Opt-in 규칙 활성화
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - explicit_init
+  - first_where
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - let_var_whitespace
+  - multiline_arguments
+  - multiline_parameters
+  - operator_usage_whitespace
+  - overridden_super_call
+  - redundant_nil_coalescing
+  - sorted_first_last
+  - vertical_parameter_alignment_on_call
+
+# 규칙 커스터마이징
+identifier_name:
+  min_length:
+    warning: 1
+    error: 1
+  max_length:
+    warning: 60
+    error: 80
+  excluded:
+    - id
+    - x
+    - y
+    - z
+    - i
+    - j
+    - k
+    - vm
+
+type_name:
+  min_length:
+    warning: 3
+    error: 2
+  max_length:
+    warning: 50
+    error: 60
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+large_tuple:
+  warning: 3
+  error: 4
+
+# 파일 헤더
+# file_header:
+#   required_pattern: |
+#     \/\/
+#     \/\/  .*?\.swift
+#     \/\/  AsyncViewModel
+#     \/\/
+#     \/\/  Created by .* on \d{4}\/\d{2}\/\d{2}\.
+#     \/\/
+
+# 커스텀 규칙
+custom_rules:
+  # MainActor 사용 권장
+  main_actor_usage:
+    name: "MainActor Usage"
+    regex: "@MainActor\\s+(?:class|struct|func)"
+    message: "Use @MainActor for UI-related types and methods"
+    severity: warning
+
+# 리포터
+reporter: "xcode"

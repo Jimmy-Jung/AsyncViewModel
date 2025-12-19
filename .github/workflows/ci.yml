@@ -1,0 +1,156 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Job 1: AsyncViewModel 패키지 빌드 및 테스트
+  build-and-test-core:
+    name: Build and Test AsyncViewModel
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      
+      - name: Build AsyncViewModel
+        working-directory: src/AsyncViewModel
+        run: swift build -c release
+      
+      - name: Test AsyncViewModel
+        working-directory: src/AsyncViewModel
+        run: swift test --enable-code-coverage --parallel
+      
+      - name: Generate Coverage Report
+        working-directory: src/AsyncViewModel
+        run: |
+          xcrun llvm-cov export -format="lcov" \
+            .build/debug/AsyncViewModelPackageTests.xctest/Contents/MacOS/AsyncViewModelPackageTests \
+            -instr-profile .build/debug/codecov/default.profdata > coverage.lcov
+      
+      - name: Upload Coverage for AsyncViewModel
+        uses: codecov/codecov-action@v4
+        with:
+          files: src/AsyncViewModel/coverage.lcov
+          flags: asyncviewmodel
+          fail_ci_if_error: false
+
+  # Job 2: AsyncViewModelMacros 패키지 빌드 및 테스트
+  build-and-test-macros:
+    name: Build and Test AsyncViewModelMacros
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      
+      - name: Build AsyncViewModelMacros
+        working-directory: src/AsyncViewModelMacros
+        run: swift build -c release
+      
+      - name: Test AsyncViewModelMacros
+        working-directory: src/AsyncViewModelMacros
+        run: swift test --enable-code-coverage --parallel
+      
+      - name: Generate Coverage Report
+        working-directory: src/AsyncViewModelMacros
+        run: |
+          xcrun llvm-cov export -format="lcov" \
+            .build/debug/AsyncViewModelMacrosPackageTests.xctest/Contents/MacOS/AsyncViewModelMacrosPackageTests \
+            -instr-profile .build/debug/codecov/default.profdata > coverage.lcov
+      
+      - name: Upload Coverage for AsyncViewModelMacros
+        uses: codecov/codecov-action@v4
+        with:
+          files: src/AsyncViewModelMacros/coverage.lcov
+          flags: macros
+          fail_ci_if_error: false
+
+  # Job 3: 패키지 검증
+  validate-packages:
+    name: Validate Swift Packages
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      
+      - name: Validate AsyncViewModel Package
+        working-directory: src/AsyncViewModel
+        run: |
+          echo "=== Validating AsyncViewModel Package ==="
+          swift package dump-package
+          swift package show-dependencies
+      
+      - name: Validate AsyncViewModelMacros Package
+        working-directory: src/AsyncViewModelMacros
+        run: |
+          echo "=== Validating AsyncViewModelMacros Package ==="
+          swift package dump-package
+          swift package show-dependencies
+
+  # Job 4: 코드 스타일
+  lint:
+    name: SwiftLint
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install SwiftLint
+        run: |
+          if ! which swiftlint >/dev/null; then
+            brew install swiftlint
+          fi
+      
+      - name: SwiftLint
+        run: |
+          swiftlint --strict || echo "SwiftLint issues found, but continuing..."
+
+  # Job 5: Example 프로젝트 빌드 (Tuist)
+  build-example:
+    name: Build Example Project
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      
+      - name: Install Tuist
+        run: |
+          curl -Ls https://install.tuist.io | bash
+      
+      - name: Generate Xcode Project
+        working-directory: src/Example
+        run: tuist generate
+      
+      - name: Build Example App
+        working-directory: src/Example
+        run: |
+          xcodebuild build \
+            -scheme AsyncViewModelExample \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty || true

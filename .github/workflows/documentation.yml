@@ -1,0 +1,60 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/AsyncViewModel/Sources/**/*.swift'
+      - 'src/AsyncViewModelMacros/Sources/**/*.swift'
+      - 'Documents/**/*.md'
+      - 'README.md'
+  workflow_dispatch:
+
+jobs:
+  generate-docs:
+    name: Generate Documentation
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      
+      - name: Install DocC
+        run: |
+          if ! which docc >/dev/null; then
+            echo "DocC is included in Xcode, checking version..."
+            xcodebuild -version
+          fi
+      
+      - name: Generate AsyncViewModel Documentation
+        working-directory: src/AsyncViewModel
+        run: |
+          swift package \
+            --allow-writing-to-directory ./docs \
+            generate-documentation \
+            --target AsyncViewModel \
+            --output-path ./docs \
+            --transform-for-static-hosting \
+            --hosting-base-path AsyncViewModel
+      
+      - name: Generate AsyncViewModelMacros Documentation
+        working-directory: src/AsyncViewModelMacros
+        run: |
+          swift package \
+            --allow-writing-to-directory ./docs \
+            generate-documentation \
+            --target AsyncViewModelMacros \
+            --output-path ./docs \
+            --transform-for-static-hosting \
+            --hosting-base-path AsyncViewModel/macros
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./src/AsyncViewModel/docs
+          destination_dir: docs
