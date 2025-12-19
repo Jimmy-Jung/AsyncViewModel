@@ -647,10 +647,26 @@ final class SearchViewModel: ObservableObject {
 
 ## 문서
 
-- 📖 [AsyncViewModel 동작원리 가이드](AsyncViewModel_동작원리_가이드.md) - 내부 동작 상세 설명
+### 📚 핵심 문서
+
+| 번호 | 문서명 | 설명 | 난이도 |
+|-----|-------|------|-------|
+| 01 | [Internal Architecture](Documents/01-Internal-Architecture.md) | AsyncViewModel 내부 동작 원리 상세 설명 | ⭐⭐⭐ |
+| 02 | [Logger Configuration](Documents/02-Logger-Configuration.md) | ViewModelLoggerBuilder 사용 가이드 | ⭐⭐ |
+
+### 🎯 추가 리소스
+
 - 🎯 [예제 프로젝트 README](src/Example/README.md) - 예제 실행 가이드
 - 🧪 [테스트 가이드](docs/Testing.md) - 테스트 작성법 (작성 예정)
 - ⚡ [성능 최적화](docs/Performance.md) - 성능 팁 (작성 예정)
+
+### 📖 추천 읽기 순서
+
+1. **시작하기**: README 빠른 시작 섹션
+2. **기본 개념**: 핵심 개념 및 기본 사용법
+3. **심화 학습**: Internal Architecture 문서
+4. **로깅 설정**: Logger Configuration 문서
+5. **실전 활용**: 예제 프로젝트
 
 ## FAQ
 
@@ -730,7 +746,7 @@ viewModel.performanceObserver = { operation, duration in
 }
 ```
 
-자세한 내용은 [LOGGING_ARCHITECTURE.md](LOGGING_ARCHITECTURE.md)와 [QUICK_START_LOGGING.md](QUICK_START_LOGGING.md)를 참고하세요.
+자세한 내용은 [Logger Configuration 가이드](Documents/02-Logger-Configuration.md)를 참고하세요.
 
 ### Q: import 방식의 차이는?
 
