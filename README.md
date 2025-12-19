@@ -155,12 +155,16 @@ struct CounterView: View {
 ### Import 방법
 
 ```swift
-// ✅ 권장: 단일 모듈 (가장 간단!)
-import AsyncViewModel  // Core + Macros 통합!
+// Core 기능만 사용
+import AsyncViewModel
 
-// ⚠️ Core만 필요한 경우 (매크로 없이 수동 구현)
-import AsyncViewModelCore
+// 매크로 사용 시
+import AsyncViewModel
+import AsyncViewModelMacros  // @AsyncViewModel 매크로 제공
 ```
+
+> **참고**: `import AsyncViewModel`만으로 Core 기능을 모두 사용할 수 있습니다.  
+> 매크로를 사용하려면 `AsyncViewModelMacros`를 추가로 import하세요.
 
 ### 매크로 없이 (수동)
 
@@ -354,21 +358,26 @@ dependencies: [
 .target(
     name: "YourTarget",
     dependencies: [
-        // ✅ 권장: 통합 모듈 (Core + Macros 포함)
+        // AsyncViewModel Core (필수)
         .product(name: "AsyncViewModel", package: "AsyncViewModel"),
         
-        // 또는 매크로 없이 Core만 사용
-        // .product(name: "AsyncViewModelCore", package: "AsyncViewModel"),
+        // 매크로 사용 시 추가
+        // .product(name: "AsyncViewModelMacros", package: "AsyncViewModel"),
     ]
 )
 ```
+
+> **참고**: AsyncViewModel과 AsyncViewModelMacros는 독립적인 패키지입니다.  
+> 매크로를 사용하려면 두 product를 모두 의존성에 추가하세요.
 
 #### Xcode에서 추가
 
 1. **File → Add Package Dependencies...**
 2. 검색창에 입력: `https://github.com/Jimmy-Jung/AsyncViewModel.git`
 3. **Add Package** 클릭
-4. **`AsyncViewModel`** 선택 (권장 - Core + Macros 포함)
+4. 다음 product 선택:
+   - **`AsyncViewModel`** (Core 기능)
+   - **`AsyncViewModelMacros`** (매크로 사용 시)
 
 ### 로깅 통합 (선택 사항)
 

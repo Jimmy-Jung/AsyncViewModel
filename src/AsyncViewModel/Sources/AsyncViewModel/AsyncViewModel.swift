@@ -58,5 +58,27 @@
 // Core 기능 re-export
 @_exported import AsyncViewModelCore
 
-// 매크로 re-export
-@_exported import AsyncViewModelMacros
+// Note: AsyncViewModelMacros는 별도 패키지입니다.
+// 매크로를 사용하려면 프로젝트에 AsyncViewModelMacros 패키지를 추가하세요.
+//
+// ## 설치 방법
+//
+// Package.swift에 다음과 같이 추가:
+//
+// ```swift
+// dependencies: [
+//     .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel.git", from: "1.0.0")
+// ]
+//
+// targets: [
+//     .target(
+//         name: "YourTarget",
+//         dependencies: [
+//             .product(name: "AsyncViewModel", package: "AsyncViewModel"),
+//             // 매크로 사용 시 추가:
+//             // .product(name: "AsyncViewModelMacros", package: "AsyncViewModel")
+//         ]
+//     )
+// ]
+// ```
+
