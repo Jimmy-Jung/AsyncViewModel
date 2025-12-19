@@ -23,7 +23,7 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Show Xcode and Swift version
         run: |
@@ -40,7 +40,7 @@ jobs:
             --hosting-base-path AsyncViewModel
       
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./docs
   
