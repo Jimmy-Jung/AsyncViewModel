@@ -31,7 +31,7 @@ let package = Package(
     name: "AsyncViewModelExample",
     dependencies: [
         // Local SPM Packages
-        .package(path: "../../AsyncViewModel"),
+        .package(path: "../AsyncViewModel"),
         
         // Logging
         .package(
