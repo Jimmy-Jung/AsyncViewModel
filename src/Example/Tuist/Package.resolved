@@ -310,10 +310,10 @@
     {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "location" : "https://github.com/swiftlang/swift-syntax",
       "state" : {
-        "revision" : "0687f71944021d616d34d922343dcef086855920",
-        "version" : "600.0.1"
+        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
+        "version" : "602.0.0"
       }
     },
     {
@@ -321,8 +321,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Jimmy-Jung/TraceKit",
       "state" : {
-        "revision" : "7eeca4ca15a6af0c6a7203c480d4291c78127bf4",
-        "version" : "1.1.1"
+        "revision" : "4e4a2bfe849f315ca9f4b2a6995a702a6628b344",
+        "version" : "1.1.2"
       }
     },
     {
