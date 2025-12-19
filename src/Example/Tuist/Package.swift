@@ -30,7 +30,8 @@ import PackageDescription
 let package = Package(
     name: "AsyncViewModelExample",
     dependencies: [
-        // Local SPM Packages
+        // AsyncViewModel (Local path for development)
+        // For production, use: .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel", from: "1.0.0")
         .package(path: "../../AsyncViewModel"),
         
         // Logging
