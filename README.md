@@ -4,7 +4,7 @@
 
 ### Swift Concurrency 기반 단방향 데이터 흐름 ViewModel 프레임워크
 
-[![Swift](https://img.shields.io/badge/Swift-6.1-orange.svg)](https://swift.org)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/Platform-iOS%2015%2B%20%7C%20macOS%2012%2B%20%7C%20tvOS%2015%2B%20%7C%20watchOS%208%2B-lightgrey.svg)](https://developer.apple.com/swift)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/Jimmy-Jung/AsyncViewModel)](https://github.com/Jimmy-Jung/AsyncViewModel/releases)
@@ -40,7 +40,7 @@ AsyncViewModel은 Swift Concurrency(async/await)를 활용한 현대적인 상�
 | 학습 곡선 | ⭐⭐ 보통 | ⭐⭐⭐ 어려움 | ⭐⭐ 보통 | ⭐⭐ 보통 |
 | Swift Concurrency | ✅ 네이티브 | ✅ 네이티브 | ❌ RxSwift | ❌ 없음 |
 | 보일러플레이트 | 적음 (매크로) | 많음 | 중간 | 많음 |
-| 외부 의존성 | TraceKit만 | TCA 라이브러리 | RxSwift | 없음 |
+| 외부 의존성 | 없음 | TCA 라이브러리 | RxSwift | 없음 |
 | 테스트 지원 | ✅ AsyncTestStore | ✅ TestStore | ✅ RxTest | ⚠️ 수동 |
 | UI 프레임워크 | SwiftUI, UIKit | 주로 SwiftUI | 주로 UIKit | 범용 |
 
@@ -283,12 +283,11 @@ final class ProductionViewModel: ObservableObject {
 AsyncViewModel은 **단방향 데이터 흐름**으로 동작합니다:
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'lineColor': '#e2e8f0', 'textColor': '#f8fafc'}}}%%
 flowchart LR
-    A[👤 Input]:::input -->|transform| B[⚙️ Action]:::action
-    B -->|reduce| C[📦 State]:::state
-    C -->|@Published| D[📱 View]:::view
-    B -->|Effect| E[🌐 비동기 작업]:::effect
+    A[Input]:::input -->|transform| B[Action]:::action
+    B -->|reduce| C[State]:::state
+    C -->|Published| D[View]:::view
+    B -->|Effect| E[Async Task]:::effect
     E -->|Action| B
     
     classDef input fill:#3b82f6,stroke:#60a5fa,color:#ffffff
@@ -310,11 +309,10 @@ flowchart LR
 ### 데이터 흐름
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'signalColor': '#e2e8f0', 'signalTextColor': '#f8fafc'}}}%%
 sequenceDiagram
-    participant V as 📱 View
-    participant VM as ⚙️ ViewModel
-    participant API as 🌐 API
+    participant V as View
+    participant VM as ViewModel
+    participant API as API
     
     V->>VM: send(.loadData)
     Note over VM: transform → [.loadData]
@@ -322,7 +320,7 @@ sequenceDiagram
     VM->>API: Effect.run
     API-->>VM: Result
     Note over VM: reduce → .dataLoaded<br/>state.data = result<br/>state.isLoading = false
-    VM-->>V: @Published 업데이트
+    VM-->>V: Published update
 ```
 
 ## 설치
@@ -372,9 +370,9 @@ dependencies: [
 
 ### 로깅 통합 (선택 사항)
 
-AsyncViewModel은 [TraceKit](https://github.com/Jimmy-Jung/TraceKit)을 로깅 라이브러리로 사용합니다.
+AsyncViewModel은 [TraceKit](https://github.com/Jimmy-Jung/TraceKit)을 로깅 라이브러리로 통합할 수 있습니다.
 
-> **참고**: TraceKit은 AsyncViewModel의 의존성으로 자동 포함되므로 별도 설치가 필요 없습니다.
+> **참고**: TraceKit은 선택적 통합이며, 별도로 설치해야 합니다.
 
 **TraceKit 주요 기능:**
 - 🎯 고급 버퍼링 및 샘플링
@@ -612,10 +610,10 @@ func testStateChange() async throws {
 - **TCA (The Composable Architecture)** - 비교용
 
 ```bash
-cd src/Example
+cd Projects/AsyncViewModelExample
 make setup
 make generate
-open AsyncViewModel.xcworkspace
+open AsyncViewModelExample.xcworkspace
 ```
 
 ### 실전 예제: 검색 기능
@@ -707,7 +705,7 @@ final class SearchViewModel: ObservableObject {
 
 ### 🎯 추가 리소스
 
-- 🎯 [예제 프로젝트 README](src/Example/README.md) - 예제 실행 가이드
+- 🎯 [예제 프로젝트 README](Projects/AsyncViewModelExample/README.md) - 예제 실행 가이드
 - 🧪 [테스트 가이드](docs/Testing.md) - 테스트 작성법 (작성 예정)
 - ⚡ [성능 최적화](docs/Performance.md) - 성능 팁 (작성 예정)
 
@@ -778,7 +776,7 @@ viewModel.isLoggingEnabled = false
 viewModel.logLevel = .error
 
 // 3. TraceKit 통합 (권장)
-// TraceKit은 AsyncViewModel에 기본 포함되어 있습니다
+// TraceKit을 별도로 설치한 경우 사용 가능
 Task { @TraceKitActor in
     await TraceKitBuilder.debug().buildAsShared()
 }
@@ -812,7 +810,7 @@ AsyncViewModel은 **단일 통합 모듈**로 사용하는 것이 가장 간단�
 
 AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환영합니다!
 
-### v1.0.0 (현재)
+### v1.1.0 (현재)
 - ✅ 핵심 아키텍처 구현
 - ✅ Swift 6 Concurrency 지원
 - ✅ @AsyncViewModel 매크로
@@ -820,14 +818,14 @@ AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환�
 - ✅ TraceKit 로깅 통합
 - ✅ 완전한 문서화
 
-### v1.1.0 (계획 중)
+### v1.2.0 (계획 중)
 - [ ] SwiftUI Preview 지원 개선
 - [ ] 추가 Effect 타입 (retry, timeout)
 - [ ] 성능 최적화
 - [ ] 더 많은 예제 추가
 - [ ] 영문 문서
 
-### v1.2.0 (검토 중)
+### v1.3.0 (검토 중)
 - [ ] Observation 프레임워크 지원
 - [ ] 플러그인 시스템
 - [ ] 시각화 도구
@@ -867,7 +865,7 @@ AsyncViewModel은 오픈소스 프로젝트이며, 여러분의 기여를 환영
 
 - 💬 [GitHub Discussions](https://github.com/Jimmy-Jung/AsyncViewModel/discussions) - 질문, 아이디어, 피드백
 - 🐛 [Issues](https://github.com/Jimmy-Jung/AsyncViewModel/issues) - 버그 리포트, 기능 제안
-- 📧 Email: jimmy.developer@example.com
+- 📧 Email: joony300@gmail.com
 
 ### 행동 강령
 
@@ -917,7 +915,7 @@ AsyncViewModel은 다음 프로젝트들에서 영감을 받았습니다:
 iOS Developer from Seoul, South Korea 🇰🇷
 
 - GitHub: [@Jimmy-Jung](https://github.com/Jimmy-Jung)
-- Email: jimmy.developer@example.com
+- Email: joony300@gmail.com
 
 ## 후원
 

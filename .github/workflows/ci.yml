@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, feature/*, release/* ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -100,7 +100,11 @@ jobs:
       
       - name: Install Tuist
         run: |
-          curl -Ls https://install.tuist.io | bash
+          brew install tuist
+      
+      - name: Install Dependencies
+        working-directory: Projects/AsyncViewModelExample
+        run: tuist install
       
       - name: Generate Xcode Project
         working-directory: Projects/AsyncViewModelExample
