@@ -64,7 +64,7 @@ jobs:
             
             ```swift
             dependencies: [
-                .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel", from: "${{ steps.version.outputs.VERSION }}")
+                .package(url: "https://github.com/megastudymobile/ms-asyncviewmodel-ios", from: "${{ steps.version.outputs.VERSION }}")
             ]
             ```
             
@@ -81,8 +81,8 @@ jobs:
             
             ## Documentation
             
-            - [GitHub README](https://github.com/Jimmy-Jung/AsyncViewModel)
-            - [API Documentation](https://jimmy-jung.github.io/AsyncViewModel/documentation/asyncviewmodel)
+            - [GitHub README](https://github.com/megastudymobile/ms-asyncviewmodel-ios)
+            - [API Documentation](https://megastudymobile.github.io/ms-asyncviewmodel-ios/documentation/asyncviewmodel)
           draft: false
           prerelease: false
         env:
