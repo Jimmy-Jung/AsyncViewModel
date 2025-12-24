@@ -342,7 +342,7 @@ sequenceDiagram
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel.git", from: "1.0.0")
+    .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel.git", from: "1.2.0")
 ]
 ```
 
@@ -890,7 +890,7 @@ AsyncViewModel은 [MIT License](LICENSE)로 배포됩니다.
 ```
 MIT License
 
-Copyright (c) 2024 Jimmy Jung
+Copyright (c) 2025 Jimmy Jung
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
