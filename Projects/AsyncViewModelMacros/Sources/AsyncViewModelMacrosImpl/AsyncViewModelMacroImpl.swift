@@ -118,6 +118,15 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
             )
         }
 
+        // timer 프로퍼티 (기본값 제공으로 자동 초기화)
+        if !existingProperties.contains("timer") {
+            members.append(
+                """
+                public var timer: any AsyncTimer = SystemTimer()
+                """
+            )
+        }
+
         return members
     }
 
@@ -129,6 +138,15 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
         providingAttributesFor member: some DeclSyntaxProtocol,
         in _: some MacroExpansionContext
     ) throws -> [AttributeSyntax] {
+        // Input, Action, State, CancelID 같은 중첩 타입에는 @MainActor를 추가하지 않음
+        if let structDecl = member.as(StructDeclSyntax.self) {
+            return []
+        }
+        
+        if let enumDecl = member.as(EnumDeclSyntax.self) {
+            return []
+        }
+        
         // 이미 @MainActor가 있는지 확인
         if let attributedNode = member.asProtocol(WithAttributesSyntax.self) {
             let hasMainActor = attributedNode.attributes.contains { attribute in
