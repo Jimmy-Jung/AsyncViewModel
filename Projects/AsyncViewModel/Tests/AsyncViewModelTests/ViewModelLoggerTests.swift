@@ -18,6 +18,7 @@ final class TestViewModel: ObservableObject, AsyncViewModelProtocol {
     var tasks: [CancelID: Task<Void, Never>] = [:]
     var effectQueue: [AsyncEffect<Action, CancelID>] = []
     var isProcessingEffects = false
+    var timer: any AsyncTimer = SystemTimer()
     var actionObserver: ((Action) -> Void)?
 
     var stateChangeObserver: ((State, State) -> Void)?

@@ -16,11 +16,28 @@ import AsyncViewModelCore
 /// - `effectQueue`: Effect 직렬 처리를 위한 큐
 /// - `isProcessingEffects`: Effect 처리 상태
 /// - `actionObserver`: 디버깅/테스트를 위한 액션 관찰 훅
-/// - `isLoggingEnabled`: 로깅 활성화/비활성화 플래그
-/// - `logLevel`: 현재 로깅 레벨
 /// - `stateChangeObserver`: 상태 변경 관찰 훅
 /// - `effectObserver`: Effect 실행 관찰 훅
 /// - `performanceObserver`: 성능 메트릭 관찰 훅
+/// - `timer`: AsyncTimer 인스턴스 (기본값: SystemTimer())
+///
+/// ## 생명주기 관리
+///
+/// ViewModel의 생명주기는 SwiftUI View의 `.onDisappear`에서 명시적으로 관리해야 합니다:
+///
+/// ```swift
+/// struct MyView: View {
+///     @StateObject private var viewModel = MyViewModel()
+///     
+///     var body: some View {
+///         // ... UI 코드 ...
+///         .onDisappear {
+///             // 필요한 정리 작업 수행
+///             viewModel.send(.cleanup)
+///         }
+///     }
+/// }
+/// ```
 ///
 /// ## 사용 예시
 ///
@@ -58,6 +75,7 @@ import AsyncViewModelCore
 ///     public var stateChangeObserver: ((State, State) -> Void)? = nil
 ///     public var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? = nil
 ///     public var performanceObserver: ((String, TimeInterval) -> Void)? = nil
+///     public var timer: any AsyncTimer = SystemTimer()
 /// }
 ///
 /// @MainActor
@@ -90,7 +108,8 @@ import AsyncViewModelCore
     named(actionObserver),
     named(stateChangeObserver),
     named(effectObserver),
-    named(performanceObserver))
+    named(performanceObserver),
+    named(timer))
 @attached(memberAttribute)
 @attached(extension, conformances: AsyncViewModelProtocol)
 public macro AsyncViewModel() = #externalMacro(

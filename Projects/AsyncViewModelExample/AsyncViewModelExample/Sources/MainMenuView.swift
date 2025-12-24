@@ -92,8 +92,58 @@ struct MainMenuView: View {
                     )
                 }
             }
+            
+            Section(header: Text("AsyncTimer 예제")) {
+                NavigationLink {
+                    CountdownTimerView(initialSeconds: 60)
+                        .navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    ExampleRow(
+                        icon: "timer",
+                        title: "카운트다운 타이머",
+                        description: "AsyncTimer를 활용한 타이머",
+                        color: .cyan
+                    )
+                }
+                
+                NavigationLink {
+                    MultiTimerView()
+                        .navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    ExampleRow(
+                        icon: "timer.square",
+                        title: "멀티 타이머",
+                        description: "여러 타이머 동시 실행",
+                        color: .indigo
+                    )
+                }
+                
+                NavigationLink {
+                    AutoRefreshView()
+                        .navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    ExampleRow(
+                        icon: "arrow.clockwise",
+                        title: "자동 새로고침",
+                        description: "주기적 데이터 갱신",
+                        color: .teal
+                    )
+                }
+                
+                NavigationLink {
+                    DebouncedSearchView()
+                        .navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    ExampleRow(
+                        icon: "magnifyingglass",
+                        title: "디바운스 검색",
+                        description: "실시간 검색 최적화",
+                        color: .mint
+                    )
+                }
+            }
         }
-        .navigationTitle("계산기 예제")
+        .navigationTitle("AsyncViewModel 예제")
         .listStyle(.insetGrouped)
     }
 }

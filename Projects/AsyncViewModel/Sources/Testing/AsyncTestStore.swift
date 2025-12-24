@@ -20,11 +20,16 @@ import Foundation
 @MainActor
 public class AsyncTestStore<ViewModel: AsyncViewModelProtocol> {
     public let viewModel: ViewModel
+    public let testTimer: TestTimer
     private var receivedActions: [ViewModel.Action] = []
     private var originalObserver: ((ViewModel.Action) -> Void)?
 
     public init(viewModel: ViewModel) {
         self.viewModel = viewModel
+        self.testTimer = TestTimer()
+        
+        // TestTimer를 ViewModel에 주입
+        viewModel.timer = testTimer
         
         self.originalObserver = viewModel.actionObserver
         
@@ -78,6 +83,23 @@ public class AsyncTestStore<ViewModel: AsyncViewModelProtocol> {
             }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
+    }
+    
+    /// 가상 시간을 진행시킵니다. (TestTimer의 tick 호출)
+    ///
+    /// **사용 예시:**
+    /// ```swift
+    /// store.send(.startTimer)
+    /// await store.tick(by: 1.0) // 1초 진행
+    /// #expect(store.state.timerFired == true)
+    /// ```
+    public func tick(by duration: TimeInterval) async {
+        await testTimer.tick(by: duration)
+    }
+    
+    /// 모든 대기 중인 sleep을 즉시 완료시킵니다.
+    public func flush() async {
+        await testTimer.flush()
     }
 
     public enum TestError: Error {

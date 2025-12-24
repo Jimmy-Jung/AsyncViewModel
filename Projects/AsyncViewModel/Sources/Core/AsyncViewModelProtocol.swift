@@ -25,6 +25,7 @@ public protocol AsyncViewModelProtocol: ObservableObject {
     var tasks: [CancelID: Task<Void, Never>] { get set }
     var effectQueue: [AsyncEffect<Action, CancelID>] { get set }
     var isProcessingEffects: Bool { get set }
+    var timer: any AsyncTimer { get set }
     var actionObserver: ((Action) -> Void)? { get set }
     var stateChangeObserver: ((State, State) -> Void)? { get set }
     var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? { get set}
@@ -46,6 +47,34 @@ extension AsyncViewModelProtocol {
         }
     }
 
+    /// Action을 직접 실행합니다.
+    ///
+    /// ⚠️ **주의**: 이 메서드는 ViewModel 내부에서만 사용해야 합니다.
+    ///
+    /// 외부에서 ViewModel과 상호작용할 때는 반드시 `send(_:)` 메서드를 사용하세요.
+    /// `perform`은 다음과 같은 내부 용도로만 사용됩니다:
+    /// - `handleError`에서 에러 처리 Action 실행
+    /// - `reduce`에서 반환된 Effect의 Action 처리
+    /// - 테스트 코드에서 직접 Action 주입
+    ///
+    /// **올바른 사용:**
+    /// ```swift
+    /// // ✅ 외부에서
+    /// viewModel.send(.buttonTapped)
+    ///
+    /// // ✅ ViewModel 내부에서
+    /// func handleError(_ error: SendableError) {
+    ///     perform(.errorOccurred(error))
+    /// }
+    /// ```
+    ///
+    /// **잘못된 사용:**
+    /// ```swift
+    /// // ❌ 외부에서 직접 Action 호출
+    /// viewModel.perform(.dataLoaded(data))
+    /// ```
+    ///
+    /// - Parameter action: 실행할 Action
     public func perform(_ action: Action) {
         let startTime = CFAbsoluteTimeGetCurrent()
 
@@ -103,6 +132,10 @@ extension AsyncViewModelProtocol {
             processCancelEffect(id: id)
         case let .concurrent(effects):
             await processConcurrentEffect(effects)
+        case let .sleepThen(id, duration, action):
+            await processSleepThenEffect(id: id, duration: duration, action: action)
+        case let .timer(id, interval, action):
+            processTimerEffect(id: id, interval: interval, action: action)
         }
 
         let duration = CFAbsoluteTimeGetCurrent() - startTime
@@ -157,6 +190,50 @@ extension AsyncViewModelProtocol {
 
         let results = await executeParallelOperations(effects)
         await processParallelResults(effects: effects, results: results)
+    }
+    
+    private func processSleepThenEffect(
+        id: CancelID?,
+        duration: TimeInterval,
+        action: Action
+    ) async {
+        cancelExistingTask(id: id)
+        
+        let task = Task { [timer] in
+            do {
+                try await timer.sleep(for: duration)
+                await MainActor.run { [weak self] in
+                    self?.processActionEffect(action)
+                    if !self!.isProcessingEffects {
+                        Task {
+                            await self?.processNextEffect()
+                        }
+                    }
+                }
+            } catch {
+                // Sleep이 취소된 경우 무시
+            }
+        }
+        
+        registerTask(task, id: id)
+    }
+    
+    private func processTimerEffect(
+        id: CancelID?,
+        interval: TimeInterval,
+        action: Action
+    ) {
+        cancelExistingTask(id: id)
+        
+        let task = Task { [timer] in
+            for await _ in timer.stream(interval: interval) {
+                await MainActor.run { [weak self] in
+                    self?.processActionEffect(action)
+                }
+            }
+        }
+        
+        registerTask(task, id: id)
     }
 
     // MARK: - Operation Helpers
@@ -490,5 +567,37 @@ extension AsyncViewModelProtocol {
             function: function,
             line: line
         )
+    }
+    
+    /// deinit에서 호출 가능한 nonisolated 로깅 메서드
+    ///
+    /// deinit은 actor isolation을 가질 수 없으므로, 이 메서드를 통해 로깅합니다.
+    ///
+    /// - Parameters:
+    ///   - taskCount: 취소할 활성 Task 수
+    nonisolated public func logDeinit(taskCount: Int) {
+        let viewModelName = String(describing: Self.self)
+        
+        Task { @MainActor in
+            if taskCount > 0 {
+                LoggerConfiguration.logger.logAction(
+                    "🔄 deinit - Cancelling \(taskCount) active task(s)",
+                    viewModel: viewModelName,
+                    level: .info,
+                    file: #file,
+                    function: "deinit",
+                    line: #line
+                )
+            } else {
+                LoggerConfiguration.logger.logAction(
+                    "✅ deinit - No active tasks",
+                    viewModel: viewModelName,
+                    level: .debug,
+                    file: #file,
+                    function: "deinit",
+                    line: #line
+                )
+            }
+        }
     }
 }

@@ -7,9 +7,9 @@
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/Platform-iOS%2015%2B%20%7C%20macOS%2012%2B%20%7C%20tvOS%2015%2B%20%7C%20watchOS%208%2B-lightgrey.svg)](https://developer.apple.com/swift)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/megastudymobile/ms-asyncviewmodel-ios)](https://github.com/megastudymobile/ms-asyncviewmodel-ios/releases)
-[![CI](https://github.com/megastudymobile/ms-asyncviewmodel-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/megastudymobile/ms-asyncviewmodel-ios/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/megastudymobile/ms-asyncviewmodel-ios/branch/main/graph/badge.svg)](https://codecov.io/gh/megastudymobile/ms-asyncviewmodel-ios)
+[![Release](https://img.shields.io/github/v/release/Jimmy-Jung/AsyncViewModel)](https://github.com/Jimmy-Jung/AsyncViewModel/releases)
+[![CI](https://github.com/Jimmy-Jung/AsyncViewModel/actions/workflows/ci.yml/badge.svg)](https://github.com/Jimmy-Jung/AsyncViewModel/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Jimmy-Jung/AsyncViewModel/branch/main/graph/badge.svg)](https://codecov.io/gh/Jimmy-Jung/AsyncViewModel)
 [![SPM Compatible](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://swift.org/package-manager)
 
 [English](#) | [한국어](#-korean)
@@ -342,7 +342,7 @@ sequenceDiagram
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/megastudymobile/ms-asyncviewmodel-ios.git", from: "1.0.0")
+    .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel.git", from: "1.2.0")
 ]
 ```
 
@@ -364,7 +364,7 @@ dependencies: [
 #### Xcode에서 추가
 
 1. **File → Add Package Dependencies...**
-2. 검색창에 입력: `https://github.com/megastudymobile/ms-asyncviewmodel-ios.git`
+2. 검색창에 입력: `https://github.com/Jimmy-Jung/AsyncViewModel.git`
 3. **Add Package** 클릭
 4. **`AsyncViewModel`** 선택 (권장 - Core + Macros 포함)
 
@@ -702,6 +702,9 @@ final class SearchViewModel: ObservableObject {
 |-----|-------|------|-------|
 | 01 | [Internal Architecture](Documents/01-Internal-Architecture.md) | AsyncViewModel 내부 동작 원리 상세 설명 | ⭐⭐⭐ |
 | 02 | [Logger Configuration](Documents/02-Logger-Configuration.md) | ViewModelLoggerBuilder 사용 가이드 | ⭐⭐ |
+| 03 | [GitHub Actions Guide](Documents/03-GitHub-Actions-Guide.md) | CI/CD 파이프라인 설정 가이드 | ⭐⭐ |
+| 04 | [Release Checklist](Documents/04-Release-Checklist.md) | 릴리스 체크리스트 및 절차 | ⭐⭐ |
+| 05 | [AsyncTimer & Lifecycle Guide](Documents/05-AsyncTimer-And-Lifecycle-Guide.md) | 시간 기반 작업과 생명주기 관리 완벽 가이드 | ⭐⭐ |
 
 ### 🎯 추가 리소스
 
@@ -810,7 +813,7 @@ AsyncViewModel은 **단일 통합 모듈**로 사용하는 것이 가장 간단�
 
 AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환영합니다!
 
-### v1.1.0 (현재)
+### v1.1.0
 - ✅ 핵심 아키텍처 구현
 - ✅ Swift 6 Concurrency 지원
 - ✅ @AsyncViewModel 매크로
@@ -818,11 +821,20 @@ AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환�
 - ✅ TraceKit 로깅 통합
 - ✅ 완전한 문서화
 
-### v1.2.0 (계획 중)
+### v1.2.0 (현재)
+- ✅ AsyncTimer 시스템 (TCA Clock 패턴)
+  - SystemTimer (운영 환경용)
+  - TestTimer (테스트용, 시간 제어)
+  - `.sleepThen`, `.timer` Effect 추가
+- ✅ 생명주기 관리 가이드
+- ✅ Timer 관련 예제 추가 (Countdown, AutoRefresh, Stopwatch, MultiTimer)
+- ✅ 통합 문서 시스템 (5개 핵심 문서)
+- ✅ 테스트 커버리지 개선
+
+### v1.3.0 (계획 중)
 - [ ] SwiftUI Preview 지원 개선
 - [ ] 추가 Effect 타입 (retry, timeout)
 - [ ] 성능 최적화
-- [ ] 더 많은 예제 추가
 - [ ] 영문 문서
 
 ### v1.3.0 (검토 중)
@@ -831,7 +843,7 @@ AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환�
 - [ ] 시각화 도구
 - [ ] VS Code 확장
 
-제안이나 아이디어가 있으신가요? [Discussion](https://github.com/megastudymobile/ms-asyncviewmodel-ios/discussions)에서 공유해주세요!
+제안이나 아이디어가 있으신가요? [Discussion](https://github.com/Jimmy-Jung/AsyncViewModel/discussions)에서 공유해주세요!
 
 ## 기여하기
 
@@ -839,7 +851,7 @@ AsyncViewModel은 오픈소스 프로젝트이며, 여러분의 기여를 환영
 
 ### 기여 방법
 
-1. **이슈 확인**: [Issues](https://github.com/megastudymobile/ms-asyncviewmodel-ios/issues)에서 해결하고 싶은 문제 찾기
+1. **이슈 확인**: [Issues](https://github.com/Jimmy-Jung/AsyncViewModel/issues)에서 해결하고 싶은 문제 찾기
 2. **Fork**: 저장소를 Fork합니다
 3. **브랜치 생성**: `git checkout -b feature/amazing-feature`
 4. **변경사항 작성**: 코드 작성 및 테스트 추가
@@ -857,14 +869,14 @@ AsyncViewModel은 오픈소스 프로젝트이며, 여러분의 기여를 환영
 
 ### 좋은 첫 이슈
 
-처음 기여하시나요? [`good first issue`](https://github.com/megastudymobile/ms-asyncviewmodel-ios/labels/good%20first%20issue) 라벨이 붙은 이슈부터 시작해보세요!
+처음 기여하시나요? [`good first issue`](https://github.com/Jimmy-Jung/AsyncViewModel/labels/good%20first%20issue) 라벨이 붙은 이슈부터 시작해보세요!
 
 ## 커뮤니티
 
 ### 소통 채널
 
-- 💬 [GitHub Discussions](https://github.com/megastudymobile/ms-asyncviewmodel-ios/discussions) - 질문, 아이디어, 피드백
-- 🐛 [Issues](https://github.com/megastudymobile/ms-asyncviewmodel-ios/issues) - 버그 리포트, 기능 제안
+- 💬 [GitHub Discussions](https://github.com/Jimmy-Jung/AsyncViewModel/discussions) - 질문, 아이디어, 피드백
+- 🐛 [Issues](https://github.com/Jimmy-Jung/AsyncViewModel/issues) - 버그 리포트, 기능 제안
 - 📧 Email: joony300@gmail.com
 
 ### 행동 강령
@@ -878,8 +890,7 @@ AsyncViewModel은 [MIT License](LICENSE)로 배포됩니다.
 ```
 MIT License
 
-Copyright (c) 2025 MegaStudy Education Co., Ltd.
-Original Author: Junyoung Jung
+Copyright (c) 2025 Jimmy Jung
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -910,14 +921,10 @@ AsyncViewModel은 다음 프로젝트들에서 영감을 받았습니다:
 
 그리고 프로젝트에 기여해주신 모든 분들께 감사드립니다! 🙏
 
-### 메가스터디교육 모바일개발팀
-
-AsyncViewModel은 메가스터디교육의 모바일개발팀에서 관리하는 오픈소스 프로젝트입니다.
-
 ## 만든 사람
 
-**Junyoung Jung (정준영)** - 최초 제작자  
-iOS Developer at MegaStudy Education Co., Ltd.
+**Jimmy Jung (정준영)**  
+iOS Developer from Seoul, South Korea 🇰🇷
 
 - GitHub: [@Jimmy-Jung](https://github.com/Jimmy-Jung)
 - Email: joony300@gmail.com
