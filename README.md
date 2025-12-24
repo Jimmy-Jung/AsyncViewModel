@@ -702,6 +702,9 @@ final class SearchViewModel: ObservableObject {
 |-----|-------|------|-------|
 | 01 | [Internal Architecture](Documents/01-Internal-Architecture.md) | AsyncViewModel 내부 동작 원리 상세 설명 | ⭐⭐⭐ |
 | 02 | [Logger Configuration](Documents/02-Logger-Configuration.md) | ViewModelLoggerBuilder 사용 가이드 | ⭐⭐ |
+| 03 | [GitHub Actions Guide](Documents/03-GitHub-Actions-Guide.md) | CI/CD 파이프라인 설정 가이드 | ⭐⭐ |
+| 04 | [Release Checklist](Documents/04-Release-Checklist.md) | 릴리스 체크리스트 및 절차 | ⭐⭐ |
+| 05 | [AsyncTimer & Lifecycle Guide](Documents/05-AsyncTimer-And-Lifecycle-Guide.md) | 시간 기반 작업과 생명주기 관리 완벽 가이드 | ⭐⭐ |
 
 ### 🎯 추가 리소스
 
@@ -810,7 +813,7 @@ AsyncViewModel은 **단일 통합 모듈**로 사용하는 것이 가장 간단�
 
 AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환영합니다!
 
-### v1.1.0 (현재)
+### v1.1.0
 - ✅ 핵심 아키텍처 구현
 - ✅ Swift 6 Concurrency 지원
 - ✅ @AsyncViewModel 매크로
@@ -818,11 +821,20 @@ AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환�
 - ✅ TraceKit 로깅 통합
 - ✅ 완전한 문서화
 
-### v1.2.0 (계획 중)
+### v1.2.0 (현재)
+- ✅ AsyncTimer 시스템 (TCA Clock 패턴)
+  - SystemTimer (운영 환경용)
+  - TestTimer (테스트용, 시간 제어)
+  - `.sleepThen`, `.timer` Effect 추가
+- ✅ 생명주기 관리 가이드
+- ✅ Timer 관련 예제 추가 (Countdown, AutoRefresh, Stopwatch, MultiTimer)
+- ✅ 통합 문서 시스템 (5개 핵심 문서)
+- ✅ 테스트 커버리지 개선
+
+### v1.3.0 (계획 중)
 - [ ] SwiftUI Preview 지원 개선
 - [ ] 추가 Effect 타입 (retry, timeout)
 - [ ] 성능 최적화
-- [ ] 더 많은 예제 추가
 - [ ] 영문 문서
 
 ### v1.3.0 (검토 중)
