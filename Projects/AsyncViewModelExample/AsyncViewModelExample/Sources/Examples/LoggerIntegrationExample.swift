@@ -25,6 +25,7 @@ class ExampleViewModel1: ObservableObject, AsyncViewModelProtocol {
     var tasks: [CancelID: Task<Void, Never>] = [:]
     var effectQueue: [AsyncEffect<Action, CancelID>] = []
     var isProcessingEffects = false
+    var timer: any AsyncTimer = SystemTimer()
     var actionObserver: ((Action) -> Void)?
 
     // 로깅 설정
@@ -52,6 +53,7 @@ class ExampleViewModel2: ObservableObject, AsyncViewModelProtocol {
     var tasks: [CancelID: Task<Void, Never>] = [:]
     var effectQueue: [AsyncEffect<Action, CancelID>] = []
     var isProcessingEffects = false
+    var timer: any AsyncTimer = SystemTimer()
     var actionObserver: ((Action) -> Void)?
 
     // 로깅 설정
@@ -80,6 +82,7 @@ class ExampleViewModel3: ObservableObject, AsyncViewModelProtocol {
     var tasks: [CancelID: Task<Void, Never>] = [:]
     var effectQueue: [AsyncEffect<Action, CancelID>] = []
     var isProcessingEffects = false
+    var timer: any AsyncTimer = SystemTimer()
     var actionObserver: ((Action) -> Void)?
 
     // 로깅 설정
@@ -192,6 +195,7 @@ class ExampleViewModel4: ObservableObject, AsyncViewModelProtocol {
     var tasks: [CancelID: Task<Void, Never>] = [:]
     var effectQueue: [AsyncEffect<Action, CancelID>] = []
     var isProcessingEffects = false
+    var timer: any AsyncTimer = SystemTimer()
     var actionObserver: ((Action) -> Void)?
 
     // 로깅 설정
@@ -220,6 +224,7 @@ class ExampleViewModel5: ObservableObject, AsyncViewModelProtocol {
     var tasks: [CancelID: Task<Void, Never>] = [:]
     var effectQueue: [AsyncEffect<Action, CancelID>] = []
     var isProcessingEffects = false
+    var timer: any AsyncTimer = SystemTimer()
     var actionObserver: ((Action) -> Void)?
 
     // 로깅 설정
