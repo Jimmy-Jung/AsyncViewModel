@@ -73,6 +73,7 @@ struct AsyncViewModelTests {
         var tasks: [CancelID: Task<Void, Never>] = [:]
         var effectQueue: [AsyncEffect<Action, CancelID>] = []
         var isProcessingEffects: Bool = false
+        var timer: any AsyncTimer = SystemTimer()
         var actionObserver: ((Action) -> Void)?
 
         var stateChangeObserver: ((State, State) -> Void)?
