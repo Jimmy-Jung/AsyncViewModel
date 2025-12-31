@@ -2,7 +2,7 @@
 //  AsyncOperation.swift
 //  AsyncViewModel
 //
-//  Created by 정준영 on 2025/8/7.
+//  Created by jimmy on 2025/12/29.
 //
 
 import Foundation
@@ -13,7 +13,7 @@ public struct AsyncOperation<Action: Equatable & Sendable>: Equatable, Sendable 
     private let _operation: @Sendable () async -> AsyncOperationResult<Action>
 
     public init(operation: @escaping @Sendable () async -> AsyncOperationResult<Action>) {
-        self._operation = operation
+        _operation = operation
     }
 
     public func callAsFunction() async -> AsyncOperationResult<Action> {

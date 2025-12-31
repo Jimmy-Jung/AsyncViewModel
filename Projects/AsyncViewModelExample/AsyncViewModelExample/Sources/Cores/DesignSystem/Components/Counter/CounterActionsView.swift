@@ -2,7 +2,7 @@
 //  CounterActionsView.swift
 //  DesignSystem
 //
-//  Created by 정준혁 on 2025/08/08
+//  Created by jimmy on 2025/12/29.
 //
 
 import SwiftUI

@@ -2,7 +2,7 @@
 //  CountdownViewModel.swift
 //  AsyncViewModelExample
 //
-//  Created by jimmy on 2025/12/24.
+//  Created by jimmy on 2025/12/29.
 //
 
 import AsyncViewModel
@@ -14,19 +14,19 @@ final class CountdownViewModel: ObservableObject {
     // MARK: - Types
     
     enum Input: Equatable, Sendable {
-        case startCountdown
-        case pauseCountdown
-        case resumeCountdown
-        case resetCountdown
+        case startButtonTapped
+        case pauseButtonTapped
+        case resumeButtonTapped
+        case resetButtonTapped
     }
     
     enum Action: Equatable, Sendable {
-        case countdownStarted
+        case startCountdown
         case tick
-        case countdownPaused
-        case countdownResumed
-        case countdownFinished
-        case countdownReset
+        case pauseCountdown
+        case resumeCountdown
+        case finishCountdown
+        case resetCountdown
     }
     
     struct State: Equatable, Sendable {
@@ -53,14 +53,14 @@ final class CountdownViewModel: ObservableObject {
     
     func transform(_ input: Input) -> [Action] {
         switch input {
-        case .startCountdown:
-            return [.countdownStarted]
-        case .pauseCountdown:
-            return [.countdownPaused]
-        case .resumeCountdown:
-            return [.countdownResumed]
-        case .resetCountdown:
-            return [.countdownReset]
+        case .startButtonTapped:
+            return [.startCountdown]
+        case .pauseButtonTapped:
+            return [.pauseCountdown]
+        case .resumeButtonTapped:
+            return [.resumeCountdown]
+        case .resetButtonTapped:
+            return [.resetCountdown]
         }
     }
     
@@ -68,7 +68,7 @@ final class CountdownViewModel: ObservableObject {
     
     func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
         switch action {
-        case .countdownStarted:
+        case .startCountdown:
             state.isRunning = true
             state.isPaused = false
             // 1초마다 tick Action 실행
@@ -85,27 +85,27 @@ final class CountdownViewModel: ObservableObject {
                 state.isRunning = false
                 return [
                     .cancel(id: .countdown),
-                    .action(.countdownFinished)
+                    .action(.finishCountdown)
                 ]
             }
             
             return [.none]
             
-        case .countdownPaused:
+        case .pauseCountdown:
             state.isPaused = true
             return [.cancel(id: .countdown)]
             
-        case .countdownResumed:
+        case .resumeCountdown:
             state.isPaused = false
             // 타이머 재시작
             return [.timer(id: .countdown, interval: 1.0, action: .tick)]
             
-        case .countdownFinished:
+        case .finishCountdown:
             // 완료 처리 (알림 등)
             print("⏰ 카운트다운 완료!")
             return [.none]
             
-        case .countdownReset:
+        case .resetCountdown:
             state.isRunning = false
             state.isPaused = false
             state.remainingSeconds = 60

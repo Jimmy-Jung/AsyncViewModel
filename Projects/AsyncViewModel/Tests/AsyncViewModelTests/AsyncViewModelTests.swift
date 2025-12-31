@@ -2,7 +2,7 @@
 //  AsyncViewModelTests.swift
 //  AsyncViewModel
 //
-//  Created by 정준영 on 2025/8/3.
+//  Created by jimmy on 2025/12/29.
 //
 
 @testable import AsyncViewModelCore
