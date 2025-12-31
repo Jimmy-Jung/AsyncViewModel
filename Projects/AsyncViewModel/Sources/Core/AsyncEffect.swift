@@ -16,7 +16,7 @@ public enum AsyncEffect<Action: Equatable & Sendable, CancelID: Hashable & Senda
     case action(Action)
     case run(id: CancelID? = nil, operation: AsyncOperation<Action>)
     case cancel(id: CancelID)
-    
+
     /// 여러 Effect를 병렬로 실행합니다.
     ///
     /// 처리 전략:
@@ -41,7 +41,7 @@ public enum AsyncEffect<Action: Equatable & Sendable, CancelID: Hashable & Senda
     /// return [.sleepThen(id: .timer, for: 1.0, action: .timerFired)]
     /// ```
     case sleepThen(id: CancelID?, duration: TimeInterval, action: Action)
-    
+
     /// 지정된 간격으로 반복되는 타이머를 시작합니다. (timer 주입 가능)
     ///
     /// 사용 예시:
@@ -92,7 +92,7 @@ public extension AsyncEffect {
             }
         })
     }
-    
+
     static func runCatchingError(
         id: CancelID? = nil,
         errorAction: @escaping @Sendable (SendableError) -> Action,
@@ -109,7 +109,7 @@ public extension AsyncEffect {
     }
 
     // MARK: - Time-based Effects (Legacy - 호환성 유지)
-    
+
     /// 지정된 시간만큼 대기합니다.
     ///
     /// **참고**: 테스트 가능한 타이머를 사용하려면 `.sleepThen(id:for:action:)`을 권장합니다.

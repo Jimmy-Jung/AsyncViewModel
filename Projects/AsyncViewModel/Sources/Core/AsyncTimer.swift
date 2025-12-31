@@ -17,7 +17,7 @@ import Foundation
 /// final class MyViewModel: ObservableObject {
 ///     // 운영 환경: SystemTimer 사용 (기본값)
 ///     var timer: any AsyncTimer = SystemTimer()
-///     
+///
 ///     // 테스트 환경: TestTimer 주입
 ///     // let timer: any AsyncTimer = TestTimer()
 /// }
@@ -28,7 +28,7 @@ public protocol AsyncTimer: Sendable {
     /// - Parameter duration: 대기할 시간 (초 단위)
     /// - Throws: 취소 시 CancellationError
     func sleep(for duration: TimeInterval) async throws
-    
+
     /// 지정된 간격으로 반복되는 타이머 스트림을 생성합니다.
     ///
     /// - Parameter interval: 반복 간격 (초 단위)
@@ -47,11 +47,11 @@ public protocol AsyncTimer: Sendable {
 /// ```
 public struct SystemTimer: AsyncTimer {
     public init() {}
-    
+
     public func sleep(for duration: TimeInterval) async throws {
         try await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
     }
-    
+
     public func stream(interval: TimeInterval) -> AsyncStream<Date> {
         AsyncStream { continuation in
             let task = Task {
@@ -61,7 +61,7 @@ public struct SystemTimer: AsyncTimer {
                 }
                 continuation.finish()
             }
-            
+
             continuation.onTermination = { _ in
                 task.cancel()
             }
@@ -79,12 +79,12 @@ public struct SystemTimer: AsyncTimer {
 /// func testDelayedAction() async throws {
 ///     let timer = TestTimer()
 ///     let viewModel = MyViewModel(timer: timer)
-///     
+///
 ///     viewModel.send(.startTimer)
-///     
+///
 ///     // 시간을 가상으로 진행
 ///     await timer.advance(by: 1.0)
-///     
+///
 ///     #expect(viewModel.state.timerFired == true)
 /// }
 /// ```
@@ -93,20 +93,20 @@ public final class TestTimer: AsyncTimer {
     private var now: TimeInterval = 0
     private var scheduledSleeps: [(deadline: TimeInterval, continuation: CheckedContinuation<Void, Error>)] = []
     private var activeStreams: [UUID: StreamState] = [:]
-    
+
     private struct StreamState {
         let interval: TimeInterval
         var lastTick: TimeInterval
         let continuation: AsyncStream<Date>.Continuation
     }
-    
+
     public init() {}
-    
+
     /// 현재 가상 시간
     public var currentTime: TimeInterval {
         now
     }
-    
+
     /// 가상 시간을 진행시킵니다.
     ///
     /// - Parameter duration: 진행할 시간 (초 단위)
@@ -118,20 +118,20 @@ public final class TestTimer: AsyncTimer {
         await MainActor.run { [weak self] in
             guard let self = self else { return }
             self.now += duration
-            
+
             // Sleep 완료 처리
             let completedSleeps = self.scheduledSleeps.filter { $0.deadline <= self.now }
             self.scheduledSleeps.removeAll { $0.deadline <= self.now }
-            
+
             for sleep in completedSleeps {
                 sleep.continuation.resume()
             }
-            
+
             // Stream tick 발생
             for (id, state) in self.activeStreams {
                 let ticksSinceLastTick = Int((self.now - state.lastTick) / state.interval)
                 if ticksSinceLastTick > 0 {
-                    for _ in 0..<ticksSinceLastTick {
+                    for _ in 0 ..< ticksSinceLastTick {
                         state.continuation.yield(Date(timeIntervalSinceReferenceDate: self.now))
                     }
                     self.activeStreams[id]?.lastTick = self.now
@@ -139,20 +139,20 @@ public final class TestTimer: AsyncTimer {
             }
         }
     }
-    
+
     /// 모든 대기 중인 sleep을 즉시 완료시킵니다.
     public nonisolated func flush() async {
         await MainActor.run { [weak self] in
             guard let self = self else { return }
             let allSleeps = self.scheduledSleeps
             self.scheduledSleeps.removeAll()
-            
+
             for sleep in allSleeps {
                 sleep.continuation.resume()
             }
         }
     }
-    
+
     public nonisolated func sleep(for duration: TimeInterval) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Task { @MainActor [weak self] in
@@ -165,7 +165,7 @@ public final class TestTimer: AsyncTimer {
             }
         }
     }
-    
+
     public nonisolated func stream(interval: TimeInterval) -> AsyncStream<Date> {
         AsyncStream { continuation in
             Task { @MainActor [weak self] in
@@ -173,7 +173,7 @@ public final class TestTimer: AsyncTimer {
                     continuation.finish()
                     return
                 }
-                
+
                 let id = UUID()
                 let state = StreamState(
                     interval: interval,
@@ -181,7 +181,7 @@ public final class TestTimer: AsyncTimer {
                     continuation: continuation
                 )
                 self.activeStreams[id] = state
-                
+
                 continuation.onTermination = { [weak self] _ in
                     Task { @MainActor in
                         self?.activeStreams[id] = nil
@@ -191,4 +191,3 @@ public final class TestTimer: AsyncTimer {
         }
     }
 }
-

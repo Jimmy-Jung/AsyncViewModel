@@ -13,7 +13,7 @@ public struct AsyncOperation<Action: Equatable & Sendable>: Equatable, Sendable 
     private let _operation: @Sendable () async -> AsyncOperationResult<Action>
 
     public init(operation: @escaping @Sendable () async -> AsyncOperationResult<Action>) {
-        self._operation = operation
+        _operation = operation
     }
 
     public func callAsFunction() async -> AsyncOperationResult<Action> {
