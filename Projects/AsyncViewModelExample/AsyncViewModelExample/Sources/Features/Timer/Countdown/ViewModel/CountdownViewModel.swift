@@ -14,10 +14,10 @@ final class CountdownViewModel: ObservableObject {
     // MARK: - Types
     
     enum Input: Equatable, Sendable {
-        case startCountdown
-        case pauseCountdown
-        case resumeCountdown
-        case resetCountdown
+        case startButtonTapped
+        case pauseButtonTapped
+        case resumeButtonTapped
+        case resetButtonTapped
     }
     
     enum Action: Equatable, Sendable {
@@ -53,13 +53,13 @@ final class CountdownViewModel: ObservableObject {
     
     func transform(_ input: Input) -> [Action] {
         switch input {
-        case .startCountdown:
+        case .startButtonTapped:
             return [.countdownStarted]
-        case .pauseCountdown:
+        case .pauseButtonTapped:
             return [.countdownPaused]
-        case .resumeCountdown:
+        case .resumeButtonTapped:
             return [.countdownResumed]
-        case .resetCountdown:
+        case .resetButtonTapped:
             return [.countdownReset]
         }
     }

@@ -62,7 +62,7 @@ struct CountdownTimerView: View {
                 if !viewModel.state.isRunning {
                     // 시작 버튼
                     Button {
-                        viewModel.send(.startCountdown)
+                        viewModel.send(.startButtonTapped)
                     } label: {
                         Label("시작", systemImage: "play.fill")
                             .font(.headline)
@@ -76,9 +76,9 @@ struct CountdownTimerView: View {
                     // 일시정지/재개 버튼
                     Button {
                         if viewModel.state.isPaused {
-                            viewModel.send(.resumeCountdown)
+                            viewModel.send(.resumeButtonTapped)
                         } else {
-                            viewModel.send(.pauseCountdown)
+                            viewModel.send(.pauseButtonTapped)
                         }
                     } label: {
                         Label(
@@ -96,7 +96,7 @@ struct CountdownTimerView: View {
                 
                 // 리셋 버튼
                 Button {
-                    viewModel.send(.resetCountdown)
+                    viewModel.send(.resetButtonTapped)
                 } label: {
                     Label("초기화", systemImage: "arrow.counterclockwise")
                         .font(.headline)
@@ -115,7 +115,7 @@ struct CountdownTimerView: View {
         .onDisappear {
             // 화면을 벗어날 때 타이머 정리
             if viewModel.state.isRunning {
-                viewModel.send(.resetCountdown)
+                viewModel.send(.resetButtonTapped)
             }
         }
     }
