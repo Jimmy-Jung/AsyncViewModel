@@ -15,13 +15,13 @@ import Foundation
 @AsyncViewModel
 final class DirectStateErrorViewModel: ObservableObject {
     enum Input: Equatable, Sendable {
-        case fetchData
-        case clearError
+        case fetchButtonTapped
+        case clearErrorButtonTapped
     }
     
     enum Action: Equatable, Sendable {
-        case startFetch
-        case dataLoaded(String)
+        case fetch
+        case updateData(String)
     }
     
     struct State: Equatable, Sendable {
@@ -38,9 +38,9 @@ final class DirectStateErrorViewModel: ObservableObject {
     
     func transform(_ input: Input) -> [Action] {
         switch input {
-        case .fetchData:
-            return [.startFetch]
-        case .clearError:
+        case .fetchButtonTapped:
+            return [.fetch]
+        case .clearErrorButtonTapped:
             state.errorMessage = nil  // Input에서 직접 처리
             return []
         }
@@ -48,7 +48,7 @@ final class DirectStateErrorViewModel: ObservableObject {
     
     func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
         switch action {
-        case .startFetch:
+        case .fetch:
             state.isLoading = true
             state.errorMessage = nil
             return [
@@ -61,7 +61,7 @@ final class DirectStateErrorViewModel: ObservableObject {
                 }
             ]
             
-        case let .dataLoaded(data):
+        case let .updateData(data):
             state.isLoading = false
             state.data = data
             return [.none]
@@ -80,14 +80,13 @@ final class DirectStateErrorViewModel: ObservableObject {
 @AsyncViewModel
 final class InputErrorViewModel: ObservableObject {
     enum Input: Equatable, Sendable {
-        case fetchData
-        case handleError(SendableError)  // ← 에러용 Input 추가
+        case fetchButtonTapped
     }
     
     enum Action: Equatable, Sendable {
-        case startFetch
-        case dataLoaded(String)
-        case errorOccurred(SendableError)
+        case fetch
+        case updateData(String)
+        case handleError(SendableError)
     }
     
     struct State: Equatable, Sendable {
@@ -104,16 +103,14 @@ final class InputErrorViewModel: ObservableObject {
     
     func transform(_ input: Input) -> [Action] {
         switch input {
-        case .fetchData:
-            return [.startFetch]
-        case let .handleError(error):
-            return [.errorOccurred(error)]
+        case .fetchButtonTapped:
+            return [.fetch]
         }
     }
     
     func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
         switch action {
-        case .startFetch:
+        case .fetch:
             state.isLoading = true
             state.errorMessage = nil
             return [
@@ -123,21 +120,21 @@ final class InputErrorViewModel: ObservableObject {
                 }
             ]
             
-        case let .dataLoaded(data):
+        case let .updateData(data):
             state.isLoading = false
             state.data = data
             return [.none]
             
-        case let .errorOccurred(error):
+        case let .handleError(error):
             state.isLoading = false
             state.errorMessage = error.localizedDescription
             return [.none]
         }
     }
     
-    // ✅ Input으로 에러 전달
+    // ✅ Action으로 에러 처리 (권장)
     func handleError(_ error: SendableError) {
-        send(.handleError(error))
+        perform(.handleError(error))
     }
 }
 
@@ -146,13 +143,13 @@ final class InputErrorViewModel: ObservableObject {
 @AsyncViewModel
 final class ComplexErrorViewModel: ObservableObject {
     enum Input: Equatable, Sendable {
-        case fetchData
-        case retryLastAction
+        case fetchButtonTapped
+        case retryButtonTapped
     }
     
     enum Action: Equatable, Sendable {
-        case startFetch
-        case dataLoaded(String)
+        case fetch
+        case updateData(String)
     }
     
     struct State: Equatable, Sendable {
@@ -176,27 +173,27 @@ final class ComplexErrorViewModel: ObservableObject {
     
     func transform(_ input: Input) -> [Action] {
         switch input {
-        case .fetchData:
-            return [.startFetch]
-        case .retryLastAction:
+        case .fetchButtonTapped:
+            return [.fetch]
+        case .retryButtonTapped:
             guard state.error?.canRetry == true else { return [] }
-            return [.startFetch]
+            return [.fetch]
         }
     }
     
     func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
         switch action {
-        case .startFetch:
+        case .fetch:
             state.isLoading = true
             state.error = nil
             return [
                 .run(id: .fetch) {
                     try await Task.sleep(nanoseconds: 500_000_000)
-                    return .dataLoaded("Success!")
+                    return .updateData("Success!")
                 }
             ]
             
-        case let .dataLoaded(data):
+        case let .updateData(data):
             state.isLoading = false
             state.data = data
             state.retryCount = 0
@@ -224,7 +221,7 @@ final class ComplexErrorViewModel: ObservableObject {
         if canRetry && state.retryCount <= 1 {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                send(.retryLastAction)
+                send(.retryButtonTapped)
             }
         }
     }
@@ -244,8 +241,8 @@ final class ComplexErrorViewModel: ObservableObject {
                      .foregroundColor(.red)
                  
                  Button("다시 시도") {
-                     viewModel.send(.clearError)
-                     viewModel.send(.fetchData)
+                     viewModel.send(.clearErrorButtonTapped)
+                     viewModel.send(.fetchButtonTapped)
                  }
              }
          }

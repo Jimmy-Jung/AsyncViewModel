@@ -23,10 +23,10 @@ final class MultiTimerViewModel: ObservableObject {
     }
     
     enum Action: Equatable, Sendable {
-        case timerStarted(TimerID)
-        case timerTick(TimerID)
-        case timerStopped(TimerID)
-        case timerReset(TimerID)
+        case startTimer(TimerID)
+        case tick(TimerID)
+        case stopTimer(TimerID)
+        case resetTimer(TimerID)
     }
     
     struct State: Equatable, Sendable {
@@ -72,22 +72,22 @@ final class MultiTimerViewModel: ObservableObject {
     func transform(_ input: Input) -> [Action] {
         switch input {
         case let .startTimerButtonTapped(id):
-            return [.timerStarted(id)]
+            return [.startTimer(id)]
             
         case let .stopTimerButtonTapped(id):
-            return [.timerStopped(id)]
+            return [.stopTimer(id)]
             
         case let .resetTimerButtonTapped(id):
-            return [.timerReset(id)]
+            return [.resetTimer(id)]
             
         case .startAllButtonTapped:
-            return TimerID.allCases.map { .timerStarted($0) }
+            return TimerID.allCases.map { .startTimer($0) }
             
         case .stopAllButtonTapped:
-            return TimerID.allCases.map { .timerStopped($0) }
+            return TimerID.allCases.map { .stopTimer($0) }
             
         case .resetAllButtonTapped:
-            return TimerID.allCases.map { .timerReset($0) }
+            return TimerID.allCases.map { .resetTimer($0) }
         }
     }
     
@@ -95,7 +95,7 @@ final class MultiTimerViewModel: ObservableObject {
     
     func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
         switch action {
-        case let .timerStarted(id):
+        case let .startTimer(id):
             // 이미 실행 중인 타이머는 다시 시작하지 않음
             guard state.timers[id]?.isRunning == false else {
                 return [.none]
@@ -108,10 +108,10 @@ final class MultiTimerViewModel: ObservableObject {
             }
             
             return [
-                .timer(id: .timer(id), interval: interval, action: .timerTick(id))
+                .timer(id: .timer(id), interval: interval, action: .tick(id))
             ]
             
-        case let .timerTick(id):
+        case let .tick(id):
             guard state.timers[id]?.isRunning == true else {
                 return [.none]
             }
@@ -119,11 +119,11 @@ final class MultiTimerViewModel: ObservableObject {
             state.timers[id]?.count += 1
             return [.none]
             
-        case let .timerStopped(id):
+        case let .stopTimer(id):
             state.timers[id]?.isRunning = false
             return [.cancel(id: .timer(id))]
             
-        case let .timerReset(id):
+        case let .resetTimer(id):
             state.timers[id]?.isRunning = false
             state.timers[id]?.count = 0
             return [.cancel(id: .timer(id))]

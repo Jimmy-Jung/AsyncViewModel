@@ -20,10 +20,10 @@ final class AutoRefreshViewModel: ObservableObject {
     }
     
     enum Action: Equatable, Sendable {
-        case autoRefreshStarted
+        case startAutoRefresh
         case refresh
-        case dataLoaded(String)
-        case autoRefreshStopped
+        case updateData(String)
+        case stopAutoRefresh
     }
     
     struct State: Equatable, Sendable {
@@ -61,9 +61,9 @@ final class AutoRefreshViewModel: ObservableObject {
     func transform(_ input: Input) -> [Action] {
         switch input {
         case .startAutoRefreshButtonTapped:
-            return [.autoRefreshStarted]
+            return [.startAutoRefresh]
         case .stopAutoRefreshButtonTapped:
-            return [.autoRefreshStopped]
+            return [.stopAutoRefresh]
         case .manualRefreshButtonTapped:
             return [.refresh]
         }
@@ -73,7 +73,7 @@ final class AutoRefreshViewModel: ObservableObject {
     
     func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
         switch action {
-        case .autoRefreshStarted:
+        case .startAutoRefresh:
             state.isAutoRefreshing = true
             // 5초마다 자동 새로고침
             return [
@@ -86,16 +86,16 @@ final class AutoRefreshViewModel: ObservableObject {
             return [
                 .run(id: .fetchData) { [repository] in
                     let data = try await repository.fetchData()
-                    return .dataLoaded(data)
+                    return .updateData(data)
                 }
             ]
             
-        case let .dataLoaded(data):
+        case let .updateData(data):
             state.data = data
             state.lastRefreshTime = Date()
             return [.none]
             
-        case .autoRefreshStopped:
+        case .stopAutoRefresh:
             state.isAutoRefreshing = false
             return [.cancel(id: .autoRefresh)]
         }

@@ -15,14 +15,14 @@ final class DebouncedSearchViewModel: ObservableObject {
     
     enum Input: Equatable, Sendable {
         case searchTextChanged(String)
-        case clearSearch
+        case clearButtonTapped
     }
     
     enum Action: Equatable, Sendable {
         case updateQuery(String)
         case performSearch(String)
-        case searchResultsLoaded([String])
-        case searchCleared
+        case updateSearchResults([String])
+        case clearSearch
     }
     
     struct State: Equatable, Sendable {
@@ -59,8 +59,8 @@ final class DebouncedSearchViewModel: ObservableObject {
         switch input {
         case let .searchTextChanged(query):
             return [.updateQuery(query)]
-        case .clearSearch:
-            return [.searchCleared]
+        case .clearButtonTapped:
+            return [.clearSearch]
         }
     }
     
@@ -89,16 +89,16 @@ final class DebouncedSearchViewModel: ObservableObject {
             return [
                 .run(id: .search) { [searchService] in
                     let results = try await searchService.search(query: query)
-                    return .searchResultsLoaded(results)
+                    return .updateSearchResults(results)
                 }
             ]
             
-        case let .searchResultsLoaded(results):
+        case let .updateSearchResults(results):
             state.isSearching = false
             state.results = results
             return [.none]
             
-        case .searchCleared:
+        case .clearSearch:
             state.query = ""
             state.results = []
             state.isSearching = false

@@ -10,11 +10,11 @@ import Foundation
 
 public extension CalculatorUIKitViewModel {
     enum Input: Equatable, Sendable {
-        case number(Int)
-        case operation(CalculatorOperation)
-        case equals
-        case clear
-        case dismissAlert
+        case numberButtonTapped(Int)
+        case operationButtonTapped(CalculatorOperation)
+        case equalsButtonTapped
+        case clearButtonTapped
+        case alertDismissed
     }
 
     enum Action: Equatable, Sendable {
@@ -23,11 +23,11 @@ public extension CalculatorUIKitViewModel {
         case calculate
         case clearAll
         case dismissAlert
-        case autoClear
+        case performAutoClear
         case setTimerActive(Bool)
-        case errorOccurred(SendableError)
-        case stateUpdated(CalculatorState)
-        case displayUpdated(String)
+        case handleError(SendableError)
+        case updateState(CalculatorState)
+        case updateDisplay(String)
     }
 
     struct State: Equatable, Sendable {
@@ -86,15 +86,15 @@ public final class CalculatorUIKitViewModel: ObservableObject {
 
     public func transform(_ input: Input) -> [Action] {
         switch input {
-        case let .number(digit):
+        case let .numberButtonTapped(digit):
             return [.inputNumber(digit)]
-        case let .operation(op):
+        case let .operationButtonTapped(op):
             return [.setOperation(op)]
-        case .equals:
+        case .equalsButtonTapped:
             return [.calculate]
-        case .clear:
+        case .clearButtonTapped:
             return [.clearAll]
-        case .dismissAlert:
+        case .alertDismissed:
             return [.dismissAlert]
         }
     }
@@ -110,7 +110,7 @@ public final class CalculatorUIKitViewModel: ObservableObject {
                 .action(.setTimerActive(false)),
                 .run(operation: { [calculatorUseCase] in
                     let newState = try calculatorUseCase.inputNumber(digit, currentState: currentCalculatorState)
-                    return .stateUpdated(newState)
+                    return .updateState(newState)
                 }),
             ]
 
@@ -120,7 +120,7 @@ public final class CalculatorUIKitViewModel: ObservableObject {
                 .action(.setTimerActive(false)),
                 .run(operation: { [calculatorUseCase, currentCalculatorState = state.calculatorState] in
                     let newState = try calculatorUseCase.setOperation(operation, currentState: currentCalculatorState)
-                    return .stateUpdated(newState)
+                    return .updateState(newState)
                 }),
             ]
 
@@ -129,11 +129,11 @@ public final class CalculatorUIKitViewModel: ObservableObject {
                 .action(.setTimerActive(true)),
                 .run(operation: { [calculatorUseCase, currentCalculatorState = state.calculatorState] in
                     let newState = try await calculatorUseCase.calculate(currentState: currentCalculatorState)
-                    return .stateUpdated(newState)
+                    return .updateState(newState)
                 }),
                 .run(id: CancelID.autoClearTimer, operation: {
                     try await Task.sleep(nanoseconds: 5_000_000_000)
-                    return .autoClear
+                    return .performAutoClear
                 }),
             ]
 
@@ -142,25 +142,25 @@ public final class CalculatorUIKitViewModel: ObservableObject {
             return [
                 .cancel(id: CancelID.autoClearTimer),
                 .action(.setTimerActive(false)),
-                .action(.stateUpdated(newState)),
+                .action(.updateState(newState)),
             ]
 
         case .dismissAlert:
             state.activeAlert = nil
             return [.none]
 
-        case .autoClear:
+        case .performAutoClear:
             let newState = calculatorUseCase.clear()
             return [
                 .action(.setTimerActive(false)),
-                .action(.stateUpdated(newState)),
+                .action(.updateState(newState)),
             ]
 
         case let .setTimerActive(isActive):
             state.isAutoClearTimerActive = isActive
             return [.none]
 
-        case let .errorOccurred(error):
+        case let .handleError(error):
             state.activeAlert = .error(error)
             let newState = calculatorUseCase.clear()
             state.calculatorState = newState
@@ -168,18 +168,18 @@ public final class CalculatorUIKitViewModel: ObservableObject {
             state.isAutoClearTimerActive = false
             return [.none]
 
-        case let .stateUpdated(newState):
+        case let .updateState(newState):
             state.calculatorState = newState
             state.display = newState.display
             return [.none]
 
-        case let .displayUpdated(newDisplay):
+        case let .updateDisplay(newDisplay):
             state.display = newDisplay
             return [.none]
         }
     }
 
     public func handleError(_ error: SendableError) {
-        perform(.errorOccurred(error))
+        perform(.handleError(error))
     }
 }

@@ -21,12 +21,12 @@ final class CountdownViewModel: ObservableObject {
     }
     
     enum Action: Equatable, Sendable {
-        case countdownStarted
+        case startCountdown
         case tick
-        case countdownPaused
-        case countdownResumed
-        case countdownFinished
-        case countdownReset
+        case pauseCountdown
+        case resumeCountdown
+        case finishCountdown
+        case resetCountdown
     }
     
     struct State: Equatable, Sendable {
@@ -54,13 +54,13 @@ final class CountdownViewModel: ObservableObject {
     func transform(_ input: Input) -> [Action] {
         switch input {
         case .startButtonTapped:
-            return [.countdownStarted]
+            return [.startCountdown]
         case .pauseButtonTapped:
-            return [.countdownPaused]
+            return [.pauseCountdown]
         case .resumeButtonTapped:
-            return [.countdownResumed]
+            return [.resumeCountdown]
         case .resetButtonTapped:
-            return [.countdownReset]
+            return [.resetCountdown]
         }
     }
     
@@ -68,7 +68,7 @@ final class CountdownViewModel: ObservableObject {
     
     func reduce(state: inout State, action: Action) -> [AsyncEffect<Action, CancelID>] {
         switch action {
-        case .countdownStarted:
+        case .startCountdown:
             state.isRunning = true
             state.isPaused = false
             // 1초마다 tick Action 실행
@@ -85,27 +85,27 @@ final class CountdownViewModel: ObservableObject {
                 state.isRunning = false
                 return [
                     .cancel(id: .countdown),
-                    .action(.countdownFinished)
+                    .action(.finishCountdown)
                 ]
             }
             
             return [.none]
             
-        case .countdownPaused:
+        case .pauseCountdown:
             state.isPaused = true
             return [.cancel(id: .countdown)]
             
-        case .countdownResumed:
+        case .resumeCountdown:
             state.isPaused = false
             // 타이머 재시작
             return [.timer(id: .countdown, interval: 1.0, action: .tick)]
             
-        case .countdownFinished:
+        case .finishCountdown:
             // 완료 처리 (알림 등)
             print("⏰ 카운트다운 완료!")
             return [.none]
             
-        case .countdownReset:
+        case .resetCountdown:
             state.isRunning = false
             state.isPaused = false
             state.remainingSeconds = 60

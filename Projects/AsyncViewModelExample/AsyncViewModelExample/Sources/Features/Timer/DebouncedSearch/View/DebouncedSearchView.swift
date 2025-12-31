@@ -28,7 +28,7 @@ struct DebouncedSearchView: View {
                     
                     if !viewModel.state.query.isEmpty {
                         Button(action: {
-                            viewModel.send(.clearSearch)
+                            viewModel.send(.clearButtonTapped)
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.gray)
@@ -150,7 +150,7 @@ struct DebouncedSearchView: View {
         .onDisappear {
             // 화면을 벗어날 때 검색 정리
             if !viewModel.state.query.isEmpty || viewModel.state.isSearching {
-                viewModel.send(.clearSearch)
+                viewModel.send(.clearButtonTapped)
             }
         }
     }

@@ -9,34 +9,34 @@ import SwiftUI
 
 public struct CalculatorSwiftUIView: View {
     @StateObject private var viewModel: CalculatorSwiftUIViewModel
-    
+
     public init(_ viewModel: CalculatorSwiftUIViewModel? = nil) {
         if let viewModel = viewModel {
-            self._viewModel = StateObject(wrappedValue: viewModel)
+            _viewModel = StateObject(wrappedValue: viewModel)
         } else {
-            self._viewModel = StateObject(wrappedValue: CalculatorSwiftUIViewModel())
+            _viewModel = StateObject(wrappedValue: CalculatorSwiftUIViewModel())
         }
     }
-    
+
     public var body: some View {
         VStack(spacing: .DS.lg) {
             CalculatorDisplayView(
                 display: viewModel.state.display,
                 isAutoClearActive: viewModel.state.isAutoClearTimerActive
             )
-            
+
             CalculatorButtonsView(
                 onNumberTap: { number in
-                    viewModel.send(.number(number))
+                    viewModel.send(.numberButtonTapped(number))
                 },
                 onOperationTap: { operation in
-                    viewModel.send(.operation(operation))
+                    viewModel.send(.operationButtonTapped(operation))
                 },
                 onEqualsTap: {
-                    viewModel.send(.equals)
+                    viewModel.send(.equalsButtonTapped)
                 },
                 onClearTap: {
-                    viewModel.send(.clear)
+                    viewModel.send(.clearButtonTapped)
                 }
             )
         }
@@ -49,12 +49,12 @@ public struct CalculatorSwiftUIView: View {
         .navigationTitle("SwiftUI Calculator")
         .alert(item: $viewModel.state.activeAlert) { alertType in
             switch alertType {
-            case .error(let error):
+            case let .error(error):
                 return Alert(
                     title: Text("오류"),
                     message: Text(error.localizedDescription),
                     dismissButton: .default(Text("확인")) {
-                        viewModel.send(.dismissAlert)
+                        viewModel.send(.alertDismissed)
                     }
                 )
             }
@@ -63,10 +63,11 @@ public struct CalculatorSwiftUIView: View {
 }
 
 // MARK: - Display View
+
 public struct CalculatorDisplayView: View {
     public let display: String
     public let isAutoClearActive: Bool
-    
+
     public var body: some View {
         VStack {
             if isAutoClearActive {
@@ -81,9 +82,9 @@ public struct CalculatorDisplayView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
             }
-            
+
             Spacer()
-            
+
             HStack {
                 Spacer()
                 Text(display)
@@ -110,14 +111,15 @@ public struct CalculatorDisplayView: View {
 }
 
 // MARK: - Buttons View
+
 public struct CalculatorButtonsView: View {
     public let onNumberTap: (Int) -> Void
     public let onOperationTap: (CalculatorOperation) -> Void
     public let onEqualsTap: () -> Void
     public let onClearTap: () -> Void
-    
+
     private let buttonSpacing: CGFloat = 12
-    
+
     public var body: some View {
         VStack(spacing: buttonSpacing) {
             HStack(spacing: buttonSpacing) {
@@ -127,10 +129,10 @@ public struct CalculatorButtonsView: View {
                     accessibilityId: "clear_button_swiftui",
                     action: onClearTap
                 )
-                
+
                 Spacer()
                 Spacer()
-                
+
                 CalculatorButton(
                     title: "÷",
                     backgroundColor: .DS.operationButton,
@@ -138,33 +140,33 @@ public struct CalculatorButtonsView: View {
                     action: { onOperationTap(.divide) }
                 )
             }
-            
+
             HStack(spacing: buttonSpacing) {
                 CalculatorButton(title: "7", backgroundColor: .DS.numberButton, accessibilityId: "number_button_7_swiftui", action: { onNumberTap(7) })
                 CalculatorButton(title: "8", backgroundColor: .DS.numberButton, accessibilityId: "number_button_8_swiftui", action: { onNumberTap(8) })
                 CalculatorButton(title: "9", backgroundColor: .DS.numberButton, accessibilityId: "number_button_9_swiftui", action: { onNumberTap(9) })
                 CalculatorButton(title: "×", backgroundColor: .DS.operationButton, accessibilityId: "operation_button_multiply_swiftui", action: { onOperationTap(.multiply) })
             }
-            
+
             HStack(spacing: buttonSpacing) {
                 CalculatorButton(title: "4", backgroundColor: .DS.numberButton, accessibilityId: "number_button_4_swiftui", action: { onNumberTap(4) })
                 CalculatorButton(title: "5", backgroundColor: .DS.numberButton, accessibilityId: "number_button_5_swiftui", action: { onNumberTap(5) })
                 CalculatorButton(title: "6", backgroundColor: .DS.numberButton, accessibilityId: "number_button_6_swiftui", action: { onNumberTap(6) })
                 CalculatorButton(title: "-", backgroundColor: .DS.operationButton, accessibilityId: "operation_button_subtract_swiftui", action: { onOperationTap(.subtract) })
             }
-            
+
             HStack(spacing: buttonSpacing) {
                 CalculatorButton(title: "1", backgroundColor: .DS.numberButton, accessibilityId: "number_button_1_swiftui", action: { onNumberTap(1) })
                 CalculatorButton(title: "2", backgroundColor: .DS.numberButton, accessibilityId: "number_button_2_swiftui", action: { onNumberTap(2) })
                 CalculatorButton(title: "3", backgroundColor: .DS.numberButton, accessibilityId: "number_button_3_swiftui", action: { onNumberTap(3) })
                 CalculatorButton(title: "+", backgroundColor: .DS.operationButton, accessibilityId: "operation_button_add_swiftui", action: { onOperationTap(.add) })
             }
-            
+
             HStack(spacing: buttonSpacing) {
                 CalculatorButton(title: "0", backgroundColor: .DS.numberButton, accessibilityId: "number_button_0_swiftui", action: { onNumberTap(0) })
-                
+
                 Spacer()
-                
+
                 CalculatorButton(title: "=", backgroundColor: .DS.equalsButton, accessibilityId: "equals_button_swiftui", action: onEqualsTap)
             }
         }
@@ -172,19 +174,20 @@ public struct CalculatorButtonsView: View {
 }
 
 // MARK: - Button Component
+
 public struct CalculatorButton: View {
     public let title: String
     public let backgroundColor: Color
     public let accessibilityId: String
     public let action: () -> Void
-    
+
     init(title: String, backgroundColor: Color = .DS.numberButton, accessibilityId: String = "", action: @escaping () -> Void) {
         self.title = title
         self.backgroundColor = backgroundColor
         self.accessibilityId = accessibilityId
         self.action = action
     }
-    
+
     public var body: some View {
         Button(action: action) {
             Text(title)
@@ -203,10 +206,10 @@ public struct CalculatorButton: View {
 }
 
 // MARK: - Preview
+
 @available(iOS 17.0, *)
 #Preview {
     NavigationView {
         CalculatorSwiftUIView()
     }
 }
-
