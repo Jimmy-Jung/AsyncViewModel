@@ -14,9 +14,9 @@ final class AutoRefreshViewModel: ObservableObject {
     // MARK: - Types
     
     enum Input: Equatable, Sendable {
-        case startAutoRefresh
-        case stopAutoRefresh
-        case manualRefresh
+        case startAutoRefreshButtonTapped
+        case stopAutoRefreshButtonTapped
+        case manualRefreshButtonTapped
     }
     
     enum Action: Equatable, Sendable {
@@ -60,11 +60,11 @@ final class AutoRefreshViewModel: ObservableObject {
     
     func transform(_ input: Input) -> [Action] {
         switch input {
-        case .startAutoRefresh:
+        case .startAutoRefreshButtonTapped:
             return [.autoRefreshStarted]
-        case .stopAutoRefresh:
+        case .stopAutoRefreshButtonTapped:
             return [.autoRefreshStopped]
-        case .manualRefresh:
+        case .manualRefreshButtonTapped:
             return [.refresh]
         }
     }

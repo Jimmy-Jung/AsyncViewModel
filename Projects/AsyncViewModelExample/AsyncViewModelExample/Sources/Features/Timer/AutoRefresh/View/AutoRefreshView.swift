@@ -91,9 +91,9 @@ struct AutoRefreshView: View {
             VStack(spacing: 12) {
                 Button(action: {
                     if viewModel.state.isAutoRefreshing {
-                        viewModel.send(.stopAutoRefresh)
+                        viewModel.send(.stopAutoRefreshButtonTapped)
                     } else {
-                        viewModel.send(.startAutoRefresh)
+                        viewModel.send(.startAutoRefreshButtonTapped)
                     }
                 }) {
                     HStack {
@@ -109,7 +109,7 @@ struct AutoRefreshView: View {
                 }
                 
                 Button(action: {
-                    viewModel.send(.manualRefresh)
+                    viewModel.send(.manualRefreshButtonTapped)
                 }) {
                     HStack {
                         Image(systemName: "arrow.clockwise")
@@ -130,7 +130,7 @@ struct AutoRefreshView: View {
         .onDisappear {
             // 화면을 벗어날 때 자동 새로고침 중지
             if viewModel.state.isAutoRefreshing {
-                viewModel.send(.stopAutoRefresh)
+                viewModel.send(.stopAutoRefreshButtonTapped)
             }
         }
     }
