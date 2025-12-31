@@ -30,9 +30,9 @@ struct MultiTimerView: View {
                                 timerID: timerID,
                                 onAction: { action in
                                     switch action {
-                                    case .start: viewModel.send(.startTimer(timerID))
-                                    case .stop: viewModel.send(.stopTimer(timerID))
-                                    case .reset: viewModel.send(.resetTimer(timerID))
+                                    case .start: viewModel.send(.startTimerButtonTapped(timerID))
+                                    case .stop: viewModel.send(.stopTimerButtonTapped(timerID))
+                                    case .reset: viewModel.send(.resetTimerButtonTapped(timerID))
                                     }
                                 }
                             )
@@ -52,7 +52,7 @@ struct MultiTimerView: View {
                 
                 HStack(spacing: 12) {
                     Button {
-                        viewModel.send(.startAllTimers)
+                        viewModel.send(.startAllButtonTapped)
                     } label: {
                         Label("모두 시작", systemImage: "play.fill")
                             .font(.subheadline)
@@ -64,7 +64,7 @@ struct MultiTimerView: View {
                     }
                     
                     Button {
-                        viewModel.send(.stopAllTimers)
+                        viewModel.send(.stopAllButtonTapped)
                     } label: {
                         Label("모두 중지", systemImage: "stop.fill")
                             .font(.subheadline)
@@ -76,7 +76,7 @@ struct MultiTimerView: View {
                     }
                     
                     Button {
-                        viewModel.send(.resetAllTimers)
+                        viewModel.send(.resetAllButtonTapped)
                     } label: {
                         Label("모두 초기화", systemImage: "arrow.counterclockwise")
                             .font(.subheadline)
@@ -100,7 +100,7 @@ struct MultiTimerView: View {
         .onDisappear {
             print("🔴 [MultiTimerView] onDisappear")
             // SwiftUI의 생명주기 특성상 명시적으로 정리
-            viewModel.send(.stopAllTimers)
+            viewModel.send(.stopAllButtonTapped)
         }
     }
 }

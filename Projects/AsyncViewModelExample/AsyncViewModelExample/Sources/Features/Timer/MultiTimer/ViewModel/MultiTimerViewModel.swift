@@ -14,12 +14,12 @@ final class MultiTimerViewModel: ObservableObject {
     // MARK: - Types
     
     enum Input: Equatable, Sendable {
-        case startTimer(TimerID)
-        case stopTimer(TimerID)
-        case resetTimer(TimerID)
-        case startAllTimers
-        case stopAllTimers
-        case resetAllTimers
+        case startTimerButtonTapped(TimerID)
+        case stopTimerButtonTapped(TimerID)
+        case resetTimerButtonTapped(TimerID)
+        case startAllButtonTapped
+        case stopAllButtonTapped
+        case resetAllButtonTapped
     }
     
     enum Action: Equatable, Sendable {
@@ -71,22 +71,22 @@ final class MultiTimerViewModel: ObservableObject {
     
     func transform(_ input: Input) -> [Action] {
         switch input {
-        case let .startTimer(id):
+        case let .startTimerButtonTapped(id):
             return [.timerStarted(id)]
             
-        case let .stopTimer(id):
+        case let .stopTimerButtonTapped(id):
             return [.timerStopped(id)]
             
-        case let .resetTimer(id):
+        case let .resetTimerButtonTapped(id):
             return [.timerReset(id)]
             
-        case .startAllTimers:
+        case .startAllButtonTapped:
             return TimerID.allCases.map { .timerStarted($0) }
             
-        case .stopAllTimers:
+        case .stopAllButtonTapped:
             return TimerID.allCases.map { .timerStopped($0) }
             
-        case .resetAllTimers:
+        case .resetAllButtonTapped:
             return TimerID.allCases.map { .timerReset($0) }
         }
     }
