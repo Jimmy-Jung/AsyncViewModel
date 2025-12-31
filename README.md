@@ -342,7 +342,7 @@ sequenceDiagram
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel.git", from: "1.2.0")
+    .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel.git", from: "1.2.1")
 ]
 ```
 
@@ -821,7 +821,11 @@ AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환�
 - ✅ TraceKit 로깅 통합
 - ✅ 완전한 문서화
 
-### v1.2.0 (현재)
+### v1.2.1 (현재)
+- ✅ 안정성 개선 및 버그 수정
+- ✅ 문서 업데이트
+
+### v1.2.0
 - ✅ AsyncTimer 시스템 (TCA Clock 패턴)
   - SystemTimer (운영 환경용)
   - TestTimer (테스트용, 시간 제어)
