@@ -2,7 +2,7 @@
 //  AsyncViewModelProtocol.swift
 //  AsyncViewModel
 //
-//  Created by 정준영 on 2025/8/3.
+//  Created by jimmy on 2025/12/29.
 //
 
 import Foundation
@@ -28,7 +28,7 @@ public protocol AsyncViewModelProtocol: ObservableObject {
     var timer: any AsyncTimer { get set }
     var actionObserver: ((Action) -> Void)? { get set }
     var stateChangeObserver: ((State, State) -> Void)? { get set }
-    var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? { get set}
+    var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? { get set }
     var performanceObserver: ((String, TimeInterval) -> Void)? { get set }
 
     func send(_ input: Input)
@@ -191,22 +191,23 @@ extension AsyncViewModelProtocol {
         let results = await executeParallelOperations(effects)
         await processParallelResults(effects: effects, results: results)
     }
-    
+
     private func processSleepThenEffect(
         id: CancelID?,
         duration: TimeInterval,
         action: Action
     ) async {
         cancelExistingTask(id: id)
-        
+
         let task = Task { [timer] in
             do {
                 try await timer.sleep(for: duration)
                 await MainActor.run { [weak self] in
-                    self?.processActionEffect(action)
-                    if !self!.isProcessingEffects {
+                    guard let self = self else { return }
+                    self.processActionEffect(action)
+                    if !self.isProcessingEffects {
                         Task {
-                            await self?.processNextEffect()
+                            await self.processNextEffect()
                         }
                     }
                 }
@@ -214,17 +215,17 @@ extension AsyncViewModelProtocol {
                 // Sleep이 취소된 경우 무시
             }
         }
-        
+
         registerTask(task, id: id)
     }
-    
+
     private func processTimerEffect(
         id: CancelID?,
         interval: TimeInterval,
         action: Action
     ) {
         cancelExistingTask(id: id)
-        
+
         let task = Task { [timer] in
             for await _ in timer.stream(interval: interval) {
                 await MainActor.run { [weak self] in
@@ -232,7 +233,7 @@ extension AsyncViewModelProtocol {
                 }
             }
         }
-        
+
         registerTask(task, id: id)
     }
 
@@ -294,7 +295,7 @@ extension AsyncViewModelProtocol {
 
     private func logStateChangeIfNeeded(from oldState: State, to newState: State) {
         guard oldState != newState else { return }
-        
+
         let logger = LoggerConfiguration.logger
         if logger.options.showStateDiffOnly {
             let diff = calculateStateDiff(from: oldState, to: newState)
@@ -304,13 +305,13 @@ extension AsyncViewModelProtocol {
         } else {
             logStateChange(from: oldState, to: newState)
         }
-        
+
         stateChangeObserver?(oldState, newState)
     }
-    
+
     private func logEffectsIfNeeded(_ effects: [AsyncEffect<Action, CancelID>]) {
         guard !effects.isEmpty else { return }
-        
+
         let logger = LoggerConfiguration.logger
         if logger.options.groupEffects {
             logEffects(effects)
@@ -321,8 +322,7 @@ extension AsyncViewModelProtocol {
         }
     }
 
-    public func handleError(_: SendableError) {
-    }
+    public func handleError(_: SendableError) {}
 
     // MARK: - Logging Helpers
 
@@ -331,27 +331,27 @@ extension AsyncViewModelProtocol {
         to newState: State
     ) -> [String: (old: String, new: String)] {
         var changes: [String: (old: String, new: String)] = [:]
-        
+
         let oldMirror = Mirror(reflecting: oldState)
         let newMirror = Mirror(reflecting: newState)
-        
+
         for (oldChild, newChild) in zip(oldMirror.children, newMirror.children) {
             guard let label = oldChild.label else { continue }
-            
+
             let oldValue = String(describing: oldChild.value)
             let newValue = String(describing: newChild.value)
-            
+
             if oldValue != newValue {
                 changes[label] = (old: oldValue, new: newValue)
             }
         }
-        
+
         return changes
     }
-    
+
     private func logStateDiff(_ changes: [String: (old: String, new: String)]) {
         let viewModelName = String(describing: Self.self)
-        
+
         LoggerConfiguration.logger.logStateDiff(
             changes: changes,
             viewModel: viewModelName,
@@ -360,11 +360,11 @@ extension AsyncViewModelProtocol {
             line: #line
         )
     }
-    
+
     private func logEffects(_ effects: [AsyncEffect<Action, CancelID>]) {
         let effectDescriptions = effects.map { String(describing: $0) }
         let viewModelName = String(describing: Self.self)
-        
+
         LoggerConfiguration.logger.logEffects(
             effectDescriptions,
             viewModel: viewModelName,
@@ -372,7 +372,7 @@ extension AsyncViewModelProtocol {
             function: #function,
             line: #line
         )
-        
+
         for effect in effects {
             effectObserver?(effect)
         }
@@ -568,16 +568,16 @@ extension AsyncViewModelProtocol {
             line: line
         )
     }
-    
+
     /// deinit에서 호출 가능한 nonisolated 로깅 메서드
     ///
     /// deinit은 actor isolation을 가질 수 없으므로, 이 메서드를 통해 로깅합니다.
     ///
     /// - Parameters:
     ///   - taskCount: 취소할 활성 Task 수
-    nonisolated public func logDeinit(taskCount: Int) {
+    public nonisolated func logDeinit(taskCount: Int) {
         let viewModelName = String(describing: Self.self)
-        
+
         Task { @MainActor in
             if taskCount > 0 {
                 LoggerConfiguration.logger.logAction(
