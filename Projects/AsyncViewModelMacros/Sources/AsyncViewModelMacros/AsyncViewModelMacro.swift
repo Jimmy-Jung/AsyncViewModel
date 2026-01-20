@@ -28,7 +28,7 @@ import AsyncViewModelCore
 /// ```swift
 /// struct MyView: View {
 ///     @StateObject private var viewModel = MyViewModel()
-///     
+///
 ///     var body: some View {
 ///         // ... UI 코드 ...
 ///         .onDisappear {
@@ -84,13 +84,104 @@ import AsyncViewModelCore
 ///
 /// ## 로깅 설정
 ///
-/// 전역 로거를 통해 모든 ViewModel의 로깅을 제어합니다:
+/// ViewModel별 로깅을 컴파일 타임에 설정할 수 있습니다:
+///
+/// ```swift
+/// // 기본 설정 (모든 로깅 활성화, shared Logger 사용)
+/// @AsyncViewModel
+/// final class MyViewModel: ObservableObject { ... }
+///
+/// // 로깅 완전 비활성화
+/// @AsyncViewModel(logging: .disabled)
+/// final class NoisyViewModel: ObservableObject { ... }
+///
+/// // State 변경 로그만 제외 (가장 시끄러운 로그)
+/// @AsyncViewModel(logging: .noStateChanges)
+/// final class FrequentUpdateViewModel: ObservableObject { ... }
+///
+/// // 에러만 로깅
+/// @AsyncViewModel(logging: .minimal)
+/// final class PerformanceCriticalViewModel: ObservableObject { ... }
+///
+/// // 커스텀 카테고리 설정
+/// @AsyncViewModel(logging: .custom(categories: [.action, .error]))
+/// final class CustomViewModel: ObservableObject { ... }
+///
+/// // 커스텀 카테고리 + 커스텀 Logger
+/// @AsyncViewModel(logging: .custom(categories: [.action, .error], logger: .custom(DebugLogger())))
+/// final class CustomLoggerViewModel: ObservableObject { ... }
+///
+/// // 특정 카테고리만 활성화
+/// @AsyncViewModel(logging: .only(.error, .action))
+/// final class SelectiveViewModel: ObservableObject { ... }
+///
+/// // 특정 카테고리 제외
+/// @AsyncViewModel(logging: .excluding(.stateChange, .stateDiff))
+/// final class ExcludingViewModel: ObservableObject { ... }
+/// ```
+///
+/// ## Logger 설정 (logging 파라미터에 통합)
+///
+/// Logger는 ViewModelLoggingMode에 포함되어 있습니다:
+///
+/// ```swift
+/// // 전역 shared Logger 사용 (기본값)
+/// @AsyncViewModel(logging: .enabled)
+/// final class HomeViewModel: ObservableObject { ... }
+///
+/// // 해당 ViewModel에서만 커스텀 Logger 사용
+/// @AsyncViewModel(logging: .enabled(.custom(DebugLogger())))
+/// final class DebugViewModel: ObservableObject { ... }
+///
+/// // minimal 모드에서 커스텀 Logger 사용
+/// @AsyncViewModel(logging: .minimal(.custom(TraceKitLogger())))
+/// final class MinimalDebugViewModel: ObservableObject { ... }
+/// ```
+///
+/// ## 로깅 옵션 설정
+///
+/// ViewModel별로 로깅 옵션을 지정할 수 있습니다 (전역 설정 대신 사용):
+///
+/// ```swift
+/// // 전역 설정 사용 (기본값)
+/// @AsyncViewModel
+/// final class DefaultViewModel: ObservableObject { ... }
+///
+/// // 특정 ViewModel만 compact 포맷 사용
+/// @AsyncViewModel(format: .compact)
+/// final class CompactViewModel: ObservableObject { ... }
+///
+/// // 특정 ViewModel만 warning 이상 로깅
+/// @AsyncViewModel(minimumLevel: .warning)
+/// final class QuietViewModel: ObservableObject { ... }
+///
+/// // 여러 옵션 조합
+/// @AsyncViewModel(
+///     logging: .enabled,
+///     format: .detailed,
+///     minimumLevel: .info,
+///     stateDiffOnly: true,
+///     groupEffects: true
+/// )
+/// final class CustomOptionsViewModel: ObservableObject { ... }
+///
+/// // 커스텀 Logger와 옵션 조합
+/// @AsyncViewModel(
+///     logging: .enabled(.custom(DebugLogger())),
+///     format: .detailed
+/// )
+/// final class FullCustomViewModel: ObservableObject { ... }
+/// ```
+///
+/// 전역 설정은 AppDelegate에서 AsyncViewModelConfiguration을 통해 합니다:
 ///
 /// ```swift
 /// // AppDelegate에서 설정
-/// var logger = TraceKitViewModelLogger()
-/// logger.options.format = .compact
-/// LoggerConfiguration.setLogger(logger)
+/// let config = AsyncViewModelConfiguration.shared
+/// config.configure(format: .detailed)
+/// config.configure(minimumLevel: .info)
+/// config.changeLogger(TraceKitLogger())
+/// config.addInterceptors([AnalyticsInterceptor(), DebugInterceptor()])
 /// ```
 ///
 /// ## 주의사항
@@ -109,10 +200,16 @@ import AsyncViewModelCore
     named(stateChangeObserver),
     named(effectObserver),
     named(performanceObserver),
-    named(timer))
+    named(timer),
+    named(loggingConfig))
 @attached(memberAttribute)
 @attached(extension, conformances: AsyncViewModelProtocol)
-public macro AsyncViewModel() = #externalMacro(
+public macro AsyncViewModel(
+    logging: ViewModelLoggingMode = .enabled,
+    format: LogFormat? = nil,
+    stateDiffOnly: Bool? = nil,
+    groupEffects: Bool? = nil
+) = #externalMacro(
     module: "AsyncViewModelMacrosImpl",
     type: "AsyncViewModelMacroImpl"
 )
