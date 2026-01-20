@@ -176,8 +176,7 @@ final class MyViewModel: AsyncViewModelProtocol, ObservableObject {
     var effectQueue: [AsyncEffect<Action, CancelID>] = []
     var isProcessingEffects = false
     var actionObserver: ((Action) -> Void)?
-    var isLoggingEnabled = false
-    var logLevel: LogLevel = .info
+    var loggingConfig: ViewModelLoggingConfig = .default
     var stateChangeObserver: ((State, State) -> Void)?
     var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)?
     var performanceObserver: ((String, TimeInterval) -> Void)?
@@ -242,16 +241,17 @@ final class MyViewModel: ObservableObject {
 | `effectObserver` | `((AsyncEffect) -> Void)?` | Effect 실행 관찰 훅 |
 | `performanceObserver` | `((String, TimeInterval) -> Void)?` | 성능 메트릭 관찰 훅 |
 
-### 로깅 레벨
+### 로깅 카테고리
+
+로깅은 카테고리별로 활성화/비활성화할 수 있습니다:
 
 ```swift
-public enum LogLevel: Int {
-    case verbose = 0  // 가장 상세한 추적 로그 📝
-    case debug = 1    // 디버깅 목적의 로그 🔍
-    case info = 2     // 일반 정보성 로그 ℹ️
-    case warning = 3  // 잠재적 문제 경고 ⚠️
-    case error = 4    // 오류 발생 ❌
-    case fatal = 5    // 치명적 오류 💀
+public enum LogCategory: String {
+    case action       // Action 처리 로그
+    case stateChange  // State 변경 로그
+    case effect       // Effect 실행 로그
+    case performance  // 성능 측정 로그
+    case error        // 에러 로그
 }
 ```
 
@@ -260,23 +260,21 @@ public enum LogLevel: Int {
 ```swift
 import AsyncViewModel
 
-@AsyncViewModel(isLoggingEnabled: true, logLevel: .verbose)
+@AsyncViewModel(logging: .enabled)
 final class DebugViewModel: ObservableObject {
-    // 개발 중: 가장 상세한 로그 출력
+    // 모든 로그 출력
 }
 
-@AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
-final class DevelopmentViewModel: ObservableObject {
-    // 개발 중: 디버그 레벨 이상 로그 출력
-}
-
-@AsyncViewModel(isLoggingEnabled: true, logLevel: .error)
+@AsyncViewModel(logging: .minimal)
 final class ProductionViewModel: ObservableObject {
-    // 프로덕션: 에러만 로깅
+    // 에러만 로깅
+}
+
+@AsyncViewModel(logging: .only(.action, .error))
+final class CustomViewModel: ObservableObject {
+    // Action과 Error만 로깅
 }
 ```
-
-> **Note**: LogLevel은 TraceKit의 TraceLevel과 동일한 구조를 가지고 있습니다.
 
 ## 핵심 개념
 
