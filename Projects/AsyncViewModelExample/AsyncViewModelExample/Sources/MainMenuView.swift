@@ -9,9 +9,8 @@ import ComposableArchitecture
 import SwiftUI
 
 struct MainMenuView: View {
-    
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         List {
             Section {
@@ -21,14 +20,14 @@ struct MainMenuView: View {
                     .foregroundColor(.primary)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 20, leading: 20, bottom: 10, trailing: 20))
-                
+
                 Text("다양한 아키텍처 패턴으로 구현된 계산기 앱")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 20, trailing: 20))
             }
-            
+
             Section(header: Text("UIKit 예제")) {
                 NavigationLink {
                     UIKitCalculatorWrapper(title: "UIKit + AsyncViewModel")
@@ -41,7 +40,7 @@ struct MainMenuView: View {
                         color: .blue
                     )
                 }
-                
+
                 NavigationLink {
                     ReactorKitCalculatorWrapper()
                         .navigationBarTitleDisplayMode(.inline)
@@ -53,7 +52,7 @@ struct MainMenuView: View {
                         color: .purple
                     )
                 }
-                
+
                 NavigationLink {
                     TCAUIKitCalculatorWrapper()
                         .navigationBarTitleDisplayMode(.inline)
@@ -66,7 +65,7 @@ struct MainMenuView: View {
                     )
                 }
             }
-            
+
             Section(header: Text("SwiftUI 예제")) {
                 NavigationLink {
                     CalculatorSwiftUIView()
@@ -79,7 +78,7 @@ struct MainMenuView: View {
                         color: .green
                     )
                 }
-                
+
                 NavigationLink {
                     CalculatorTCASwiftUIView()
                         .navigationBarTitleDisplayMode(.inline)
@@ -92,7 +91,21 @@ struct MainMenuView: View {
                     )
                 }
             }
-            
+
+            Section(header: Text("로깅 테스트")) {
+                NavigationLink {
+                    ComplexStateView()
+                        .navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    ExampleRow(
+                        icon: "doc.text.magnifyingglass",
+                        title: "복합 상태 테스트",
+                        description: "구조화된 State 로그 확인",
+                        color: .yellow
+                    )
+                }
+            }
+
             Section(header: Text("AsyncTimer 예제")) {
                 NavigationLink {
                     CountdownTimerView(initialSeconds: 60)
@@ -105,7 +118,7 @@ struct MainMenuView: View {
                         color: .cyan
                     )
                 }
-                
+
                 NavigationLink {
                     MultiTimerView()
                         .navigationBarTitleDisplayMode(.inline)
@@ -117,7 +130,7 @@ struct MainMenuView: View {
                         color: .indigo
                     )
                 }
-                
+
                 NavigationLink {
                     AutoRefreshView()
                         .navigationBarTitleDisplayMode(.inline)
@@ -129,7 +142,7 @@ struct MainMenuView: View {
                         color: .teal
                     )
                 }
-                
+
                 NavigationLink {
                     DebouncedSearchView()
                         .navigationBarTitleDisplayMode(.inline)
@@ -149,12 +162,13 @@ struct MainMenuView: View {
 }
 
 // MARK: - Example Row
+
 struct ExampleRow: View {
     let icon: String
     let title: String
     let description: String
     let color: Color
-    
+
     var body: some View {
         HStack(spacing: 16) {
             Image(systemName: icon)
@@ -169,12 +183,12 @@ struct ExampleRow: View {
                     )
                 )
                 .cornerRadius(10)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
                     .foregroundColor(.primary)
-                
+
                 Text(description)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -185,33 +199,34 @@ struct ExampleRow: View {
 }
 
 // MARK: - UIKit Wrappers
+
 struct UIKitCalculatorWrapper: UIViewControllerRepresentable {
     let title: String
-    
+
     @MainActor
-    func makeUIViewController(context: Context) -> CalculatorUIKitViewController {
+    func makeUIViewController(context _: Context) -> CalculatorUIKitViewController {
         let vc = CalculatorUIKitViewController()
         vc.title = title
         return vc
     }
-    
-    func updateUIViewController(_ uiViewController: CalculatorUIKitViewController, context: Context) {}
+
+    func updateUIViewController(_: CalculatorUIKitViewController, context _: Context) {}
 }
 
 struct ReactorKitCalculatorWrapper: UIViewControllerRepresentable {
     @MainActor
-    func makeUIViewController(context: Context) -> CalculatorReactorViewController {
+    func makeUIViewController(context _: Context) -> CalculatorReactorViewController {
         let vc = CalculatorReactorViewController()
         vc.title = "ReactorKit Calculator"
         return vc
     }
-    
-    func updateUIViewController(_ uiViewController: CalculatorReactorViewController, context: Context) {}
+
+    func updateUIViewController(_: CalculatorReactorViewController, context _: Context) {}
 }
 
 struct TCAUIKitCalculatorWrapper: UIViewControllerRepresentable {
     @MainActor
-    func makeUIViewController(context: Context) -> CalculatorTCAUIKitViewController {
+    func makeUIViewController(context _: Context) -> CalculatorTCAUIKitViewController {
         let store = Store(initialState: CalculatorTCAFeature.State()) {
             CalculatorTCAFeature()
         }
@@ -219,14 +234,14 @@ struct TCAUIKitCalculatorWrapper: UIViewControllerRepresentable {
         vc.title = "TCA UIKit Calculator"
         return vc
     }
-    
-    func updateUIViewController(_ uiViewController: CalculatorTCAUIKitViewController, context: Context) {}
+
+    func updateUIViewController(_: CalculatorTCAUIKitViewController, context _: Context) {}
 }
 
 // MARK: - Preview
+
 #Preview {
     NavigationView {
         MainMenuView()
     }
 }
-

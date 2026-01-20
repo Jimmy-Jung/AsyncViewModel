@@ -9,18 +9,7 @@ import AsyncViewModel
 import Foundation
 import TraceKit
 
-extension LogLevel {
-    var traceLevel: TraceLevel {
-        switch self {
-        case .verbose: return .verbose
-        case .debug: return .debug
-        case .info: return .info
-        case .warning: return .warning
-        case .error: return .error
-        case .fatal: return .fatal
-        }
-    }
-}
+// LogLevel removed - using category-based logging instead
 
 @MainActor
 public struct TraceKitViewModelLogger: ViewModelLogger {
@@ -31,18 +20,16 @@ public struct TraceKitViewModelLogger: ViewModelLogger {
     public func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     ) {
-        guard level.rawValue >= options.minimumLevel.rawValue else { return }
-
-        switch options.format {
+        // LogCategory.action → info
+        switch options.actionFormat {
         case .compact:
             let message = "\(action)"
             TraceKit.log(
-                level: level.traceLevel,
+                level: .info,
                 message,
                 category: viewModel,
                 file: file,
@@ -53,7 +40,7 @@ public struct TraceKitViewModelLogger: ViewModelLogger {
         case .standard, .detailed:
             let message = "Action: \(action)"
             TraceKit.log(
-                level: level.traceLevel,
+                level: .info,
                 message,
                 category: viewModel,
                 metadata: [
@@ -98,8 +85,7 @@ public struct TraceKitViewModelLogger: ViewModelLogger {
         function: String,
         line: Int
     ) {
-        guard LogLevel.debug.rawValue >= options.minimumLevel.rawValue else { return }
-
+        // LogCategory.effect → debug
         let message = "Effect: \(effect)"
         TraceKit.log(
             level: .debug,
@@ -122,9 +108,8 @@ public struct TraceKitViewModelLogger: ViewModelLogger {
         function: String,
         line: Int
     ) {
-        guard LogLevel.debug.rawValue >= options.minimumLevel.rawValue else { return }
-
-        switch options.format {
+        // LogCategory.effect → debug
+        switch options.effectFormat {
         case .compact:
             let message = "[\(effects.count) effects]"
             TraceKit.log(
@@ -173,95 +158,24 @@ public struct TraceKitViewModelLogger: ViewModelLogger {
         }
     }
 
-    public func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel: String,
-        file: String,
-        function: String,
-        line: Int
-    ) {
-        guard LogLevel.info.rawValue >= options.minimumLevel.rawValue else { return }
-
-        switch options.format {
-        case .compact:
-            let message = formatCompactStateDiff(changes)
-            TraceKit.log(
-                level: .info,
-                message,
-                category: viewModel,
-                file: file,
-                function: function,
-                line: line
-            )
-
-        case .standard:
-            let changeDescriptions = changes.sorted(by: { $0.key < $1.key }).map { key, values in
-                "\(key): \(values.old) → \(values.new)"
-            }.joined(separator: "\n  - ")
-
-            let message = "State changed:\n  - \(changeDescriptions)"
-
-            var metadata: [String: AnyCodable] = ["type": AnyCodable("state_change")]
-            for (key, values) in changes {
-                metadata["old_\(key)"] = AnyCodable(values.old)
-                metadata["new_\(key)"] = AnyCodable(values.new)
-            }
-
-            TraceKit.log(
-                level: .info,
-                message,
-                category: viewModel,
-                metadata: metadata,
-                file: file,
-                function: function,
-                line: line
-            )
-
-        case .detailed:
-            let changeDescriptions = changes.sorted(by: { $0.key < $1.key }).map { key, values in
-                "  \(key):\n    old: \(values.old)\n    new: \(values.new)"
-            }.joined(separator: "\n")
-
-            let message = "State changed:\n\(changeDescriptions)"
-
-            var metadata: [String: AnyCodable] = ["type": AnyCodable("state_change")]
-            for (key, values) in changes {
-                metadata["old_\(key)"] = AnyCodable(values.old)
-                metadata["new_\(key)"] = AnyCodable(values.new)
-            }
-
-            TraceKit.log(
-                level: .info,
-                message,
-                category: viewModel,
-                metadata: metadata,
-                file: file,
-                function: function,
-                line: line
-            )
-        }
-    }
-
     public func logPerformance(
         operation: String,
         duration: TimeInterval,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     ) {
-        guard level.rawValue >= options.minimumLevel.rawValue else { return }
-
         let (threshold, shouldWarn) = calculatePerformanceThreshold(operation: operation, duration: duration)
 
         if !options.showZeroPerformance, duration < threshold {
             return
         }
 
-        let finalLevel = shouldWarn ? LogLevel.warning.traceLevel : level.traceLevel
+        // LogCategory.performance → debug (임계값 초과 시 warning)
+        let finalLevel: TraceLevel = shouldWarn ? .warning : .debug
 
-        switch options.format {
+        switch options.actionFormat {
         case .compact:
             let icon = shouldWarn ? "⚠️" : "⚡️"
             let message = "\(icon) \(String(format: "%.3f", duration))s"
@@ -298,14 +212,14 @@ public struct TraceKitViewModelLogger: ViewModelLogger {
     public func logError(
         _ error: SendableError,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     ) {
+        // LogCategory.error → error
         let message = "Error: \(error.localizedDescription) [\(error.domain):\(error.code)]"
         TraceKit.log(
-            level: level.traceLevel,
+            level: .error,
             message,
             category: viewModel,
             metadata: [

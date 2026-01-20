@@ -66,7 +66,6 @@ struct FirebaseViewModelLogger: ViewModelLogger {
     func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -83,22 +82,22 @@ struct FirebaseViewModelLogger: ViewModelLogger {
          Crashlytics.crashlytics().setCustomValue(viewModel, forKey: "view_model")
          */
 
-        print("[Firebase] [\(level.description)] [\(viewModel)] Action: \(action)")
+        print("[Firebase] [ACTION] [\(viewModel)] Action: \(action)")
     }
 
     func logStateChange(
-        from _: String,
-        to _: String,
+        _ stateChange: StateChangeInfo,
         viewModel _: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
+        _ = stateChange // Firebase에서 필요 시 사용
         /*
          import FirebaseCrashlytics
 
          Crashlytics.crashlytics().log("[\(viewModel)] State changed")
-         Crashlytics.crashlytics().setCustomValue(newState, forKey: "current_state")
+         Crashlytics.crashlytics().setCustomValue(stateChange.newState.compactDescription, forKey: "current_state")
          */
     }
 
@@ -122,25 +121,10 @@ struct FirebaseViewModelLogger: ViewModelLogger {
         // 그룹화된 Effect도 Firebase에는 기록하지 않을 수 있음
     }
 
-    func logStateDiff(
-        changes _: [String: (old: String, new: String)],
-        viewModel _: String,
-        file _: String,
-        function _: String,
-        line _: Int
-    ) {
-        /*
-         import FirebaseCrashlytics
-
-         Crashlytics.crashlytics().log("[\(viewModel)] State changed: \(changes.keys.joined(separator: ", "))")
-         */
-    }
-
     func logPerformance(
         operation _: String,
         duration _: TimeInterval,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -158,7 +142,6 @@ struct FirebaseViewModelLogger: ViewModelLogger {
     func logError(
         _: SendableError,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -191,7 +174,6 @@ struct SentryViewModelLogger: ViewModelLogger {
     func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -199,7 +181,7 @@ struct SentryViewModelLogger: ViewModelLogger {
         /*
          import Sentry
 
-         let breadcrumb = Breadcrumb(level: mapToSentryLevel(level), category: viewModel)
+         let breadcrumb = Breadcrumb(level: .info, category: viewModel)
          breadcrumb.message = "Action: \(action)"
          breadcrumb.data = [
              "action": action,
@@ -210,25 +192,25 @@ struct SentryViewModelLogger: ViewModelLogger {
          SentrySDK.addBreadcrumb(breadcrumb)
          */
 
-        print("[Sentry] [\(level.description)] [\(viewModel)] Action: \(action)")
+        print("[Sentry] [ACTION] [\(viewModel)] Action: \(action)")
     }
 
     func logStateChange(
-        from _: String,
-        to _: String,
+        _ stateChange: StateChangeInfo,
         viewModel _: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
+        _ = stateChange // Sentry에서 필요 시 사용
         /*
          import Sentry
 
          let breadcrumb = Breadcrumb(level: .info, category: viewModel)
          breadcrumb.message = "State changed"
          breadcrumb.data = [
-             "old_state": oldState,
-             "new_state": newState
+             "old_state": stateChange.oldState.compactDescription,
+             "new_state": stateChange.newState.compactDescription
          ]
          SentrySDK.addBreadcrumb(breadcrumb)
          */
@@ -254,27 +236,10 @@ struct SentryViewModelLogger: ViewModelLogger {
         // Breadcrumb으로 기록
     }
 
-    func logStateDiff(
-        changes _: [String: (old: String, new: String)],
-        viewModel _: String,
-        file _: String,
-        function _: String,
-        line _: Int
-    ) {
-        /*
-         import Sentry
-
-         let breadcrumb = Breadcrumb(level: .info, category: viewModel)
-         breadcrumb.message = "State changed: \(changes.keys.joined(separator: ", "))"
-         SentrySDK.addBreadcrumb(breadcrumb)
-         */
-    }
-
     func logPerformance(
         operation _: String,
         duration _: TimeInterval,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -294,7 +259,6 @@ struct SentryViewModelLogger: ViewModelLogger {
     func logError(
         _: SendableError,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -345,7 +309,6 @@ struct DatadogViewModelLogger: ViewModelLogger {
     func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -355,7 +318,7 @@ struct DatadogViewModelLogger: ViewModelLogger {
          import DatadogLogs
 
          logger.log(
-             level: mapToDatadogLevel(level),
+             level: .info,
              message: "Action: \(action)",
              attributes: [
                  "view_model": viewModel,
@@ -366,24 +329,24 @@ struct DatadogViewModelLogger: ViewModelLogger {
          )
          */
 
-        print("[Datadog] [\(level.description)] [\(viewModel)] Action: \(action)")
+        print("[Datadog] [ACTION] [\(viewModel)] Action: \(action)")
     }
 
     func logStateChange(
-        from _: String,
-        to _: String,
+        _ stateChange: StateChangeInfo,
         viewModel _: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
+        _ = stateChange // Datadog에서 필요 시 사용
         /*
          logger.info(
              "State changed",
              attributes: [
                  "view_model": viewModel,
-                 "old_state": oldState,
-                 "new_state": newState
+                 "old_state": stateChange.oldState.compactDescription,
+                 "new_state": stateChange.newState.compactDescription
              ]
          )
          */
@@ -397,11 +360,18 @@ struct DatadogViewModelLogger: ViewModelLogger {
         line _: Int
     ) {}
 
+    func logEffects(
+        _: [String],
+        viewModel _: String,
+        file _: String,
+        function _: String,
+        line _: Int
+    ) {}
+
     func logPerformance(
         operation _: String,
         duration _: TimeInterval,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -420,7 +390,6 @@ struct DatadogViewModelLogger: ViewModelLogger {
     func logError(
         _: SendableError,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -449,7 +418,6 @@ struct CocoaLumberjackViewModelLogger: ViewModelLogger {
     func logAction(
         _: String,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -459,8 +427,8 @@ struct CocoaLumberjackViewModelLogger: ViewModelLogger {
 
          let message = DDLogMessage(
              message: "[\(viewModel)] Action: \(action)",
-             level: mapToDDLogLevel(level),
-             flag: mapToDDLogFlag(level),
+             level: .info,
+             flag: .info,
              context: 0,
              file: file,
              function: function,
@@ -474,16 +442,25 @@ struct CocoaLumberjackViewModelLogger: ViewModelLogger {
     }
 
     func logStateChange(
-        from _: String,
-        to _: String,
+        _ stateChange: StateChangeInfo,
+        viewModel _: String,
+        file _: String,
+        function _: String,
+        line _: Int
+    ) {
+        _ = stateChange
+    }
+
+    func logEffect(
+        _: String,
         viewModel _: String,
         file _: String,
         function _: String,
         line _: Int
     ) {}
 
-    func logEffect(
-        _: String,
+    func logEffects(
+        _: [String],
         viewModel _: String,
         file _: String,
         function _: String,
@@ -494,7 +471,6 @@ struct CocoaLumberjackViewModelLogger: ViewModelLogger {
         operation _: String,
         duration _: TimeInterval,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -503,7 +479,6 @@ struct CocoaLumberjackViewModelLogger: ViewModelLogger {
     func logError(
         _: SendableError,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -535,26 +510,24 @@ struct CompositeViewModelLogger: ViewModelLogger {
     func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     ) {
         for logger in loggers {
-            logger.logAction(action, viewModel: viewModel, level: level, file: file, function: function, line: line)
+            logger.logAction(action, viewModel: viewModel, file: file, function: function, line: line)
         }
     }
 
     func logStateChange(
-        from oldState: String,
-        to newState: String,
+        _ stateChange: StateChangeInfo,
         viewModel: String,
         file: String,
         function: String,
         line: Int
     ) {
         for logger in loggers {
-            logger.logStateChange(from: oldState, to: newState, viewModel: viewModel, file: file, function: function, line: line)
+            logger.logStateChange(stateChange, viewModel: viewModel, file: file, function: function, line: line)
         }
     }
 
@@ -582,42 +555,28 @@ struct CompositeViewModelLogger: ViewModelLogger {
         }
     }
 
-    func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel: String,
-        file: String,
-        function: String,
-        line: Int
-    ) {
-        for logger in loggers {
-            logger.logStateDiff(changes: changes, viewModel: viewModel, file: file, function: function, line: line)
-        }
-    }
-
     func logPerformance(
         operation: String,
         duration: TimeInterval,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     ) {
         for logger in loggers {
-            logger.logPerformance(operation: operation, duration: duration, viewModel: viewModel, level: level, file: file, function: function, line: line)
+            logger.logPerformance(operation: operation, duration: duration, viewModel: viewModel, file: file, function: function, line: line)
         }
     }
 
     func logError(
         _ error: SendableError,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     ) {
         for logger in loggers {
-            logger.logError(error, viewModel: viewModel, level: level, file: file, function: function, line: line)
+            logger.logError(error, viewModel: viewModel, file: file, function: function, line: line)
         }
     }
 }
@@ -629,11 +588,11 @@ struct CompositeViewModelLogger: ViewModelLogger {
 struct ConditionalViewModelLogger: ViewModelLogger {
     var options: LoggingOptions = .init()
     private let baseLogger: any ViewModelLogger
-    private let shouldLog: (String, LogLevel) -> Bool
+    private let shouldLog: (String) -> Bool
 
     init(
         baseLogger: any ViewModelLogger,
-        shouldLog: @escaping (String, LogLevel) -> Bool
+        shouldLog: @escaping (String) -> Bool
     ) {
         self.baseLogger = baseLogger
         self.shouldLog = shouldLog
@@ -642,25 +601,23 @@ struct ConditionalViewModelLogger: ViewModelLogger {
     func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     ) {
-        guard shouldLog(viewModel, level) else { return }
-        baseLogger.logAction(action, viewModel: viewModel, level: level, file: file, function: function, line: line)
+        guard shouldLog(viewModel) else { return }
+        baseLogger.logAction(action, viewModel: viewModel, file: file, function: function, line: line)
     }
 
     func logStateChange(
-        from oldState: String,
-        to newState: String,
+        _ stateChange: StateChangeInfo,
         viewModel: String,
         file: String,
         function: String,
         line: Int
     ) {
-        guard shouldLog(viewModel, .info) else { return }
-        baseLogger.logStateChange(from: oldState, to: newState, viewModel: viewModel, file: file, function: function, line: line)
+        guard shouldLog(viewModel) else { return }
+        baseLogger.logStateChange(stateChange, viewModel: viewModel, file: file, function: function, line: line)
     }
 
     func logEffect(
@@ -670,7 +627,7 @@ struct ConditionalViewModelLogger: ViewModelLogger {
         function: String,
         line: Int
     ) {
-        guard shouldLog(viewModel, .debug) else { return }
+        guard shouldLog(viewModel) else { return }
         baseLogger.logEffect(effect, viewModel: viewModel, file: file, function: function, line: line)
     }
 
@@ -681,44 +638,31 @@ struct ConditionalViewModelLogger: ViewModelLogger {
         function: String,
         line: Int
     ) {
-        guard shouldLog(viewModel, .debug) else { return }
+        guard shouldLog(viewModel) else { return }
         baseLogger.logEffects(effects, viewModel: viewModel, file: file, function: function, line: line)
-    }
-
-    func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel: String,
-        file: String,
-        function: String,
-        line: Int
-    ) {
-        guard shouldLog(viewModel, .info) else { return }
-        baseLogger.logStateDiff(changes: changes, viewModel: viewModel, file: file, function: function, line: line)
     }
 
     func logPerformance(
         operation: String,
         duration: TimeInterval,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     ) {
-        guard shouldLog(viewModel, level) else { return }
-        baseLogger.logPerformance(operation: operation, duration: duration, viewModel: viewModel, level: level, file: file, function: function, line: line)
+        guard shouldLog(viewModel) else { return }
+        baseLogger.logPerformance(operation: operation, duration: duration, viewModel: viewModel, file: file, function: function, line: line)
     }
 
     func logError(
         _ error: SendableError,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     ) {
-        guard shouldLog(viewModel, level) else { return }
-        baseLogger.logError(error, viewModel: viewModel, level: level, file: file, function: function, line: line)
+        guard shouldLog(viewModel) else { return }
+        baseLogger.logError(error, viewModel: viewModel, file: file, function: function, line: line)
     }
 }
 
@@ -729,13 +673,13 @@ struct ExternalLoggingSDKSetupExamples {
     /// Firebase만 사용
     static func setupFirebase() {
         let logger = FirebaseViewModelLogger()
-        LoggerConfiguration.setLogger(logger)
+        AsyncViewModelConfiguration.shared.changeLogger(logger)
     }
 
     /// Sentry만 사용
     static func setupSentry() {
         let logger = SentryViewModelLogger()
-        LoggerConfiguration.setLogger(logger)
+        AsyncViewModelConfiguration.shared.changeLogger(logger)
     }
 
     /// Firebase + Sentry 동시 사용
@@ -744,7 +688,7 @@ struct ExternalLoggingSDKSetupExamples {
             FirebaseViewModelLogger(),
             SentryViewModelLogger(),
         ])
-        LoggerConfiguration.setLogger(compositeLogger)
+        AsyncViewModelConfiguration.shared.changeLogger(compositeLogger)
     }
 
     /// 개발 환경: 콘솔 + Firebase
@@ -762,7 +706,7 @@ struct ExternalLoggingSDKSetupExamples {
             ])
         #endif
 
-        LoggerConfiguration.setLogger(logger)
+        AsyncViewModelConfiguration.shared.changeLogger(logger)
     }
 
     /// 특정 ViewModel만 로깅
@@ -771,13 +715,13 @@ struct ExternalLoggingSDKSetupExamples {
 
         let conditionalLogger = ConditionalViewModelLogger(
             baseLogger: baseLogger,
-            shouldLog: { viewModel, level in
+            shouldLog: { viewModel in
                 // 특정 ViewModel만 로깅
-                viewModel.contains("Calculator") || level >= .error
+                viewModel.contains("Calculator")
             }
         )
 
-        LoggerConfiguration.setLogger(conditionalLogger)
+        AsyncViewModelConfiguration.shared.changeLogger(conditionalLogger)
     }
 }
 
@@ -796,24 +740,23 @@ struct SimpleConsoleLogger: ViewModelLogger {
     func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function _: String,
         line: Int
     ) {
         let timestamp = dateFormatter.string(from: Date())
         let fileName = (file as NSString).lastPathComponent
-        print("[\(timestamp)] [\(level.description)] [\(viewModel)] Action: \(action) (\(fileName):\(line))")
+        print("[\(timestamp)] [ACTION] [\(viewModel)] Action: \(action) (\(fileName):\(line))")
     }
 
     func logStateChange(
-        from _: String,
-        to _: String,
+        _ stateChange: StateChangeInfo,
         viewModel: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
+        _ = stateChange
         let timestamp = dateFormatter.string(from: Date())
         print("[\(timestamp)] [INFO] [\(viewModel)] State changed")
     }
@@ -840,35 +783,22 @@ struct SimpleConsoleLogger: ViewModelLogger {
         print("[\(timestamp)] [DEBUG] [\(viewModel)] Effects[\(effects.count)]")
     }
 
-    func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel: String,
-        file _: String,
-        function _: String,
-        line _: Int
-    ) {
-        let timestamp = dateFormatter.string(from: Date())
-        print("[\(timestamp)] [INFO] [\(viewModel)] State changed: \(changes.keys.joined(separator: ", "))")
-    }
-
     func logPerformance(
         operation: String,
         duration: TimeInterval,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
     ) {
         let timestamp = dateFormatter.string(from: Date())
         let durationStr = String(format: "%.3f", duration)
-        print("[\(timestamp)] [\(level.description)] [\(viewModel)] ⚡️ \(operation): \(durationStr)s")
+        print("[\(timestamp)] [PERF] [\(viewModel)] ⚡️ \(operation): \(durationStr)s")
     }
 
     func logError(
         _ error: SendableError,
         viewModel: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int

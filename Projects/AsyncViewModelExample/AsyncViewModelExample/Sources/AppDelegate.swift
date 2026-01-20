@@ -15,8 +15,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        // TraceKit 설정 및 AsyncViewModel과 통합
-        setupTraceKit()
+        // AsyncViewModel 전역 로깅 설정
+        configureAsyncViewModel()
 
         return true
     }
@@ -39,40 +39,73 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didDiscardSceneSessions _: Set<UISceneSession>
     ) {}
 
-    // MARK: - TraceKit Setup
+    // MARK: - AsyncViewModel Configuration
 
-    private func setupTraceKit() {
-        Task {
-            await initializeTraceKit()
-            configureAsyncViewModelLogger()
-        }
-    }
+    private func configureAsyncViewModel() {
+        let config = AsyncViewModelConfiguration.shared
 
-    @TraceKitActor
-    private func initializeTraceKit() async {
-        await TraceKitBuilder()
-            .addOSLog(
-                subsystem: Bundle.main.bundleIdentifier ?? "com.asyncviewmodel.example",
-                minLevel: .verbose,
-                formatter: PrettyTraceFormatter.standard
-            )
-            .with(configuration: .debug)
-            .withDefaultSanitizer()
-            .applyLaunchArguments()
-            .buildAsShared()
+        // 1. 전역 로깅 옵션 설정 (모든 ViewModel에 적용됨)
+        config.configure(actionFormat: .detailed)
+        config.configure(stateFormat: .detailed)
+        config.configure(effectFormat: .detailed)
 
-        await TraceKit.async.info("✅ TraceKit initialized successfully (OSLog)")
-    }
+        // 2. Logger 변경 (선택사항, 기본은 OSLogViewModelLogger)
+        // config.changeLogger(TraceKitViewModelLogger())
 
-    private func configureAsyncViewModelLogger() {
-        ViewModelLoggerBuilder()
-            .addLogger(TraceKitViewModelLogger())
-            .withFormat(.compact)
-            .withMinimumLevel(.info)
-            .withStateDiffOnly(true)
-            .withGroupEffects(true)
-            .buildAsShared()
+        // 3. Interceptor 등록 (선택사항)
+        // config.addInterceptors([
+        //     AnalyticsInterceptor(),
+        //     DebugInterceptor()
+        // ])
 
-        TraceKit.info("✅ AsyncViewModel logger configured with builder pattern")
+        print("✅ AsyncViewModel configured with global logging options")
     }
 }
+
+// MARK: - Usage Examples
+
+//
+// ## 앱 시작단 전역 설정 (AppDelegate)
+//
+// let config = AsyncViewModelConfiguration.shared
+// config.configure(format: .detailed)
+// config.configure(groupEffects: true)
+//
+// ## 특정 ViewModel에서 별도 설정 (매크로 파라미터)
+//
+// @AsyncViewModel
+// final class MyViewModel: ObservableObject {
+//     // 기본: 전역 설정 사용
+// }
+//
+// @AsyncViewModel(logging: .noStateChanges)
+// final class FrequentUpdateViewModel: ObservableObject {
+//     // State 변경 로그 제외, 나머지는 전역 설정 사용
+// }
+//
+// @AsyncViewModel(format: .compact)
+// final class CompactLogViewModel: ObservableObject {
+//     // 이 ViewModel만 compact 포맷 사용
+// }
+//
+// @AsyncViewModel(format: .detailed, groupEffects: true)
+// final class FullCustomViewModel: ObservableObject {
+//     // 모든 옵션을 이 ViewModel에서 직접 설정
+// }
+//
+// ## Logger 설정 (logging 파라미터에 통합됨)
+//
+// @AsyncViewModel(logging: .enabled(.custom(DebugLogger())))
+// final class DebugViewModel: ObservableObject {
+//     // 커스텀 Logger 사용
+// }
+//
+// @AsyncViewModel(logging: .enabled(.custom(DebugLogger())), format: .detailed)
+// final class DebugWithOptionsViewModel: ObservableObject {
+//     // 커스텀 Logger와 포맷 조합
+// }
+//
+// @AsyncViewModel(logging: .minimal(.custom(TraceKitLogger())))
+// final class MinimalDebugViewModel: ObservableObject {
+//     // minimal 모드에서 커스텀 Logger 사용
+// }

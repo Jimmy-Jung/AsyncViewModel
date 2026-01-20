@@ -30,7 +30,6 @@ class ExampleViewModel1: ObservableObject, AsyncViewModelProtocol {
 
     // 로깅 설정
     var isLoggingEnabled = true
-    var logLevel: LogLevel = .debug
     var logger: (any ViewModelLogger)? // nil이면 전역 기본 로거 사용 (기본값: OSLogViewModelLogger)
 
     var stateChangeObserver: ((State, State) -> Void)?
@@ -58,7 +57,6 @@ class ExampleViewModel2: ObservableObject, AsyncViewModelProtocol {
 
     // 로깅 설정
     var isLoggingEnabled = true
-    var logLevel: LogLevel = .debug
     var logger: (any ViewModelLogger)? = OSLogViewModelLogger(subsystem: "com.myapp")
 
     var stateChangeObserver: ((State, State) -> Void)?
@@ -87,7 +85,6 @@ class ExampleViewModel3: ObservableObject, AsyncViewModelProtocol {
 
     // 로깅 설정
     var isLoggingEnabled = true // NoOpLogger를 사용하면 이 플래그는 무시됨
-    var logLevel: LogLevel = .debug
     var logger: (any ViewModelLogger)? = NoOpLogger()
 
     var stateChangeObserver: ((State, State) -> Void)?
@@ -112,25 +109,23 @@ struct ConsoleLogger: ViewModelLogger {
     func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
     ) {
-        print("[\(level.description)] \(viewModel) - Action: \(action)")
+        print("[\(viewModel)] Action: \(action)")
     }
 
     func logStateChange(
-        from oldState: String,
-        to newState: String,
+        _ stateChange: StateChangeInfo,
         viewModel: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
         print("[\(viewModel)] State changed:")
-        print("  From: \(oldState)")
-        print("  To: \(newState)")
+        print("  From: \(stateChange.oldState.compactDescription)")
+        print("  To: \(stateChange.newState.compactDescription)")
     }
 
     func logEffect(
@@ -153,24 +148,10 @@ struct ConsoleLogger: ViewModelLogger {
         print("[\(viewModel)] Effects[\(effects.count)]")
     }
 
-    func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel: String,
-        file _: String,
-        function _: String,
-        line _: Int
-    ) {
-        print("[\(viewModel)] State changed:")
-        for (key, values) in changes.sorted(by: { $0.key < $1.key }) {
-            print("  - \(key): \(values.old) → \(values.new)")
-        }
-    }
-
     func logPerformance(
         operation: String,
         duration: TimeInterval,
         viewModel: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -181,7 +162,6 @@ struct ConsoleLogger: ViewModelLogger {
     func logError(
         _ error: SendableError,
         viewModel: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -200,7 +180,6 @@ class ExampleViewModel4: ObservableObject, AsyncViewModelProtocol {
 
     // 로깅 설정
     var isLoggingEnabled = true
-    var logLevel: LogLevel = .debug
     var logger: (any ViewModelLogger)? = ConsoleLogger()
 
     var stateChangeObserver: ((State, State) -> Void)?
@@ -229,7 +208,6 @@ class ExampleViewModel5: ObservableObject, AsyncViewModelProtocol {
 
     // 로깅 설정
     var isLoggingEnabled = true
-    var logLevel: LogLevel = .debug
 
     // TraceKit 사용 (전역 기본 로거 사용)
     var logger: (any ViewModelLogger)? // nil이면 전역 로거 사용
@@ -284,17 +262,17 @@ class ExampleViewModel5: ObservableObject, AsyncViewModelProtocol {
 class LoggerSetupExample {
     static func setupLogging() {
         // 예시 1: 전역 기본 로거로 콘솔 로거 설정 (가장 권장)
-        LoggerConfiguration.setLogger(ConsoleLogger())
+        AsyncViewModelConfiguration.shared.changeLogger(ConsoleLogger())
         // 이후 모든 ViewModel이 자동으로 ConsoleLogger를 사용
 
         // 예시 2: 프로덕션 환경에서 로깅 비활성화
         #if RELEASE
-            LoggerConfiguration.disableLogging()
+            AsyncViewModelConfiguration.shared.changeLogger(NoOpLogger())
         #endif
 
         // 예시 3: 개발 환경에서 os.log 사용
         #if DEBUG
-            LoggerConfiguration.setLogger(OSLogViewModelLogger(subsystem: "com.myapp.calculator"))
+            AsyncViewModelConfiguration.shared.changeLogger(OSLogViewModelLogger(subsystem: "com.myapp.calculator"))
         #endif
     }
 
@@ -311,7 +289,7 @@ class LoggerSetupExample {
             // AsyncViewModel에 전역 로거 설정
             Task { @MainActor in
                 let logger = TraceKitViewModelLogger()
-                LoggerConfiguration.setLogger(logger)
+                AsyncViewModelConfiguration.shared.changeLogger(logger)
 
                 // 이제 모든 ViewModel에서 자동으로 TraceKit 사용
             }

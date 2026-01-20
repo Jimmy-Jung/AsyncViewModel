@@ -66,10 +66,10 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
             #if DEBUG
                 // 개발 환경: OS Log 사용
                 let osLogger = OSLogViewModelLogger(subsystem: "com.myapp")
-                LoggerConfiguration.setLogger(osLogger)
+                AsyncViewModelConfiguration.shared.changeLogger(osLogger)
             #else
                 // 프로덕션 환경: 로깅 비활성화
-                LoggerConfiguration.disableLogging()
+                AsyncViewModelConfiguration.shared.changeLogger(NoOpLogger())
             #endif
         }
     }
@@ -87,9 +87,10 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
 ///
 /// Task { @MainActor in
 ///     var logger = TraceKitViewModelLogger()
-///     logger.options.format = .compact
+///     logger.options.actionFormat = .compact
+///     logger.options.effectFormat = .compact
 ///     logger.options.performanceThreshold = nil // 스마트 임계값 사용 (기본값)
-///     ViewModelLoggerConfiguration.shared.setLogger(logger)
+///     AsyncViewModelConfiguration.shared.changeLogger(logger)
 /// }
 /// ```
 ///
@@ -97,13 +98,13 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
 /// ```swift
 /// Task { @MainActor in
 ///     var logger = TraceKitViewModelLogger()
-///     logger.options.format = .standard
+///     logger.options.actionFormat = .standard
 ///     // Action processing: 10ms 초과 시 경고
 ///     logger.options.performanceThreshold = PerformanceThreshold(
 ///         type: .actionProcessing,
 ///         customThreshold: 0.010
 ///     )
-///     ViewModelLoggerConfiguration.shared.setLogger(logger)
+///     AsyncViewModelConfiguration.shared.changeLogger(logger)
 /// }
 /// ```
 ///
@@ -111,11 +112,11 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
 /// ```swift
 /// Task { @MainActor in
 ///     var logger = TraceKitViewModelLogger()
-///     logger.options.format = .standard
+///     logger.options.actionFormat = .standard
+///     logger.options.stateFormat = .standard
+///     logger.options.effectFormat = .standard
 ///     logger.options.performanceThreshold = nil // 스마트 임계값
-///     logger.options.showStateDiffOnly = true
-///     logger.options.groupEffects = true
-///     ViewModelLoggerConfiguration.shared.setLogger(logger)
+///     AsyncViewModelConfiguration.shared.changeLogger(logger)
 /// }
 /// ```
 ///
@@ -123,15 +124,15 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
 /// ```swift
 /// Task { @MainActor in
 ///     var logger = TraceKitViewModelLogger()
-///     logger.options.format = .detailed
+///     logger.options.actionFormat = .detailed
+///     logger.options.stateFormat = .detailed
+///     logger.options.effectFormat = .detailed
 ///     logger.options.performanceThreshold = PerformanceThreshold(
 ///         type: .custom,
 ///         customThreshold: 0.0 // 모든 성능 로그
 ///     )
-///     logger.options.showStateDiffOnly = false
-///     logger.options.groupEffects = false
 ///     logger.options.showZeroPerformance = true
-///     ViewModelLoggerConfiguration.shared.setLogger(logger)
+///     AsyncViewModelConfiguration.shared.changeLogger(logger)
 /// }
 /// ```
 
@@ -165,12 +166,12 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
 
 // MARK: - 환경별 설정 예시
 
-extension LoggerConfiguration {
+extension AsyncViewModelConfiguration {
     /// 개발 환경 설정
     @MainActor
     static func setupForDevelopment() {
         let logger = ExampleConsoleLogger()
-        LoggerConfiguration.setLogger(logger)
+        AsyncViewModelConfiguration.shared.changeLogger(logger)
         print("🔧 Development Logger: Console")
     }
 
@@ -178,7 +179,7 @@ extension LoggerConfiguration {
     @MainActor
     static func setupForStaging() {
         let logger = OSLogViewModelLogger(subsystem: "com.myapp.staging")
-        LoggerConfiguration.setLogger(logger)
+        AsyncViewModelConfiguration.shared.changeLogger(logger)
         print("🔧 Staging Logger: OSLog")
     }
 
@@ -186,7 +187,7 @@ extension LoggerConfiguration {
     @MainActor
     static func setupForProduction() {
         // 프로덕션에서는 로깅 비활성화로 성능 최적화
-        LoggerConfiguration.disableLogging()
+        AsyncViewModelConfiguration.shared.changeLogger(NoOpLogger())
         print("🔧 Production Logger: Disabled")
     }
 }
@@ -206,18 +207,16 @@ struct ExampleConsoleLogger: ViewModelLogger {
     func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
     ) {
         let timestamp = dateFormatter.string(from: Date())
-        print("[\(timestamp)] [\(level.description)] [\(viewModel)] Action: \(action)")
+        print("[\(timestamp)] [ACTION] [\(viewModel)] Action: \(action)")
     }
 
     func logStateChange(
-        from oldState: String,
-        to newState: String,
+        _ stateChange: StateChangeInfo,
         viewModel: String,
         file _: String,
         function _: String,
@@ -225,8 +224,8 @@ struct ExampleConsoleLogger: ViewModelLogger {
     ) {
         let timestamp = dateFormatter.string(from: Date())
         print("[\(timestamp)] [INFO] [\(viewModel)] State changed:")
-        print("  From: \(oldState)")
-        print("  To: \(newState)")
+        print("  From: \(stateChange.oldState.compactDescription)")
+        print("  To: \(stateChange.newState.compactDescription)")
     }
 
     func logEffect(
@@ -251,25 +250,10 @@ struct ExampleConsoleLogger: ViewModelLogger {
         print("[\(timestamp)] [DEBUG] [\(viewModel)] Effects[\(effects.count)]: \(effects.joined(separator: ", "))")
     }
 
-    func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel: String,
-        file _: String,
-        function _: String,
-        line _: Int
-    ) {
-        let timestamp = dateFormatter.string(from: Date())
-        print("[\(timestamp)] [INFO] [\(viewModel)] State changed:")
-        for (key, values) in changes.sorted(by: { $0.key < $1.key }) {
-            print("  - \(key): \(values.old) → \(values.new)")
-        }
-    }
-
     func logPerformance(
         operation: String,
         duration: TimeInterval,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -288,19 +272,18 @@ struct ExampleConsoleLogger: ViewModelLogger {
 
         let timestamp = dateFormatter.string(from: Date())
         let durationStr = String(format: "%.3f", duration)
-        print("[\(timestamp)] [\(level.description)] [\(viewModel)] Performance - \(operation): \(durationStr)s")
+        print("[\(timestamp)] [PERF] [\(viewModel)] Performance - \(operation): \(durationStr)s")
     }
 
     func logError(
         _ error: SendableError,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
     ) {
         let timestamp = dateFormatter.string(from: Date())
-        print("[\(timestamp)] [\(level.description)] [\(viewModel)] Error: \(error.localizedDescription)")
+        print("[\(timestamp)] [ERROR] [\(viewModel)] Error: \(error.localizedDescription)")
     }
 }
 
