@@ -19,39 +19,72 @@ public struct OSLogViewModelLogger: ViewModelLogger {
     public func logAction(
         _ action: String,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
         let message = "Action: \(action)"
-
-        switch level {
-        case .verbose, .debug:
-            logger.debug("\(message, privacy: .public)")
-        case .info:
-            logger.info("\(message, privacy: .public)")
-        case .warning:
-            logger.warning("\(message, privacy: .public)")
-        case .error:
-            logger.error("\(message, privacy: .public)")
-        case .fatal:
-            logger.fault("\(message, privacy: .public)")
-        }
+        // LogCategory.action → info
+        logger.info("\(message, privacy: .public)")
     }
 
     public func logStateChange(
-        from oldState: String,
-        to newState: String,
+        _ stateChange: StateChangeInfo,
         viewModel: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
-        logger.info("State changed from:\n\(oldState, privacy: .public)")
-        logger.info("State changed to:\n\(newState, privacy: .public)")
+
+        switch options.stateFormat {
+        case .compact:
+            // 변경된 프로퍼티만 한 줄로 출력
+            if stateChange.changes.isEmpty {
+                logger.info("State: no changes")
+            } else {
+                let changedProps = stateChange.changes.map { change in
+                    "\(change.propertyName): \(change.oldValue.value) → \(change.newValue.value)"
+                }.joined(separator: ", ")
+                let message = "State: \(changedProps)"
+                logger.info("\(message, privacy: .public)")
+            }
+
+        case .standard:
+            // 변경 정보를 구조화된 형태로 출력
+            if stateChange.changes.isEmpty {
+                logger.info("State unchanged")
+            } else {
+                let changeDescriptions = stateChange.changes.map { change in
+                    "  \(change.propertyName): \(change.oldValue.value) → \(change.newValue.value)"
+                }.joined(separator: "\n")
+                let message = "State changed (\(stateChange.changes.count) properties):\n\(changeDescriptions)"
+                logger.info("\(message, privacy: .public)")
+            }
+
+        case .detailed:
+            // 전체 State 구조를 출력
+            let oldStateStr = stateChange.oldState.detailedDescription
+            let newStateStr = stateChange.newState.detailedDescription
+
+            if stateChange.changes.isEmpty {
+                logger.info("State unchanged:\n\(newStateStr, privacy: .public)")
+            } else {
+                let changeDescriptions = stateChange.changes.map { change in
+                    "  \(change.propertyName) (\(change.oldValue.typeName)):\n    old: \(change.oldValue.value)\n    new: \(change.newValue.value)"
+                }.joined(separator: "\n")
+
+                let message = """
+                State changed (\(stateChange.changes.count) properties):
+                \(changeDescriptions)
+
+                Full state:
+                \(newStateStr)
+                """
+                logger.info("\(message, privacy: .public)")
+            }
+        }
     }
 
     public func logEffect(
@@ -62,6 +95,7 @@ public struct OSLogViewModelLogger: ViewModelLogger {
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
+        // LogCategory.effect → debug
         logger.debug("Effect: \(effect, privacy: .public)")
     }
 
@@ -73,8 +107,9 @@ public struct OSLogViewModelLogger: ViewModelLogger {
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
+        // LogCategory.effect → debug
 
-        switch options.format {
+        switch options.effectFormat {
         case .compact:
             let message = "\(effects.count) effects"
             logger.debug("\(message, privacy: .public)")
@@ -94,41 +129,10 @@ public struct OSLogViewModelLogger: ViewModelLogger {
         }
     }
 
-    public func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel: String,
-        file _: String,
-        function _: String,
-        line _: Int
-    ) {
-        let logger = createLogger(category: viewModel)
-
-        switch options.format {
-        case .compact:
-            let summary = changes.keys.sorted().joined(separator: ", ")
-            logger.info("State: \(summary, privacy: .public)")
-
-        case .standard:
-            let changeDescriptions = changes.sorted(by: { $0.key < $1.key }).map { key, values in
-                "\(key): \(values.old) → \(values.new)"
-            }.joined(separator: "\n  - ")
-            let message = "State changed:\n  - \(changeDescriptions)"
-            logger.info("\(message, privacy: .public)")
-
-        case .detailed:
-            let changeDescriptions = changes.sorted(by: { $0.key < $1.key }).map { key, values in
-                "  \(key):\n    old: \(values.old)\n    new: \(values.new)"
-            }.joined(separator: "\n")
-            let message = "State changed:\n\(changeDescriptions)"
-            logger.info("\(message, privacy: .public)")
-        }
-    }
-
     public func logPerformance(
         operation: String,
         duration: TimeInterval,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -148,43 +152,25 @@ public struct OSLogViewModelLogger: ViewModelLogger {
         let logger = createLogger(category: viewModel)
         let message = "Performance - \(operation): \(String(format: "%.3f", duration))s"
 
-        switch level {
-        case .verbose, .debug:
-            logger.debug("\(message, privacy: .public)")
-        case .info:
-            logger.info("\(message, privacy: .public)")
-        case .warning:
+        // LogCategory.performance → debug (임계값 초과 시 warning)
+        if duration >= threshold {
             logger.warning("\(message, privacy: .public)")
-        case .error:
-            logger.error("\(message, privacy: .public)")
-        case .fatal:
-            logger.fault("\(message, privacy: .public)")
+        } else {
+            logger.debug("\(message, privacy: .public)")
         }
     }
 
     public func logError(
         _ error: SendableError,
         viewModel: String,
-        level: LogLevel,
         file _: String,
         function _: String,
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
         let message = "Error: \(error.localizedDescription) [\(error.domain):\(error.code)]"
-
-        switch level {
-        case .verbose, .debug:
-            logger.debug("\(message, privacy: .public)")
-        case .info:
-            logger.info("\(message, privacy: .public)")
-        case .warning:
-            logger.warning("\(message, privacy: .public)")
-        case .error:
-            logger.error("\(message, privacy: .public)")
-        case .fatal:
-            logger.fault("\(message, privacy: .public)")
-        }
+        // LogCategory.error → error
+        logger.error("\(message, privacy: .public)")
     }
 
     private func createLogger(category: String) -> os.Logger {

@@ -15,15 +15,13 @@ public struct NoOpLogger: ViewModelLogger {
     public func logAction(
         _: String,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
     ) {}
 
     public func logStateChange(
-        from _: String,
-        to _: String,
+        _: StateChangeInfo,
         viewModel _: String,
         file _: String,
         function _: String,
@@ -46,19 +44,10 @@ public struct NoOpLogger: ViewModelLogger {
         line _: Int
     ) {}
 
-    public func logStateDiff(
-        changes _: [String: (old: String, new: String)],
-        viewModel _: String,
-        file _: String,
-        function _: String,
-        line _: Int
-    ) {}
-
     public func logPerformance(
         operation _: String,
         duration _: TimeInterval,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -67,7 +56,6 @@ public struct NoOpLogger: ViewModelLogger {
     public func logError(
         _: SendableError,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int

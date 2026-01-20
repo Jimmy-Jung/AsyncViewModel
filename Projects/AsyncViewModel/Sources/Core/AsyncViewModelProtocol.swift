@@ -28,8 +28,11 @@ public protocol AsyncViewModelProtocol: ObservableObject {
     var timer: any AsyncTimer { get set }
     var actionObserver: ((Action) -> Void)? { get set }
     var stateChangeObserver: ((State, State) -> Void)? { get set }
-    var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? { get set}
+    var effectObserver: ((AsyncEffect<Action, CancelID>) -> Void)? { get set }
     var performanceObserver: ((String, TimeInterval) -> Void)? { get set }
+
+    /// ViewModel별 로깅 설정 (매크로가 자동 생성)
+    var loggingConfig: ViewModelLoggingConfig { get }
 
     func send(_ input: Input)
     func transform(_ input: Input) -> [Action]
@@ -40,6 +43,11 @@ public protocol AsyncViewModelProtocol: ObservableObject {
 // MARK: - Default Implementation
 
 extension AsyncViewModelProtocol {
+    /// 기본 로깅 설정 (매크로가 생성하지 않은 경우)
+    public var loggingConfig: ViewModelLoggingConfig {
+        .default
+    }
+
     public func send(_ input: Input) {
         let actions = transform(input)
         for action in actions {
@@ -89,7 +97,7 @@ extension AsyncViewModelProtocol {
         logEffectsIfNeeded(effects)
 
         let duration = CFAbsoluteTimeGetCurrent() - startTime
-        logPerformance("Action processing", duration: duration, level: .debug)
+        logPerformance("Action processing", duration: duration)
 
         Task {
             await processNextEffect()
@@ -139,14 +147,14 @@ extension AsyncViewModelProtocol {
         }
 
         let duration = CFAbsoluteTimeGetCurrent() - startTime
-        logPerformance("Effect handling", duration: duration, level: .debug)
+        logPerformance("Effect handling", duration: duration)
     }
 
     // MARK: - Effect Processing Helpers
 
     /// 재귀적으로 perform을 호출하지 않고, 현재 처리 루프에 통합하여 평탄화합니다.
     private func processActionEffect(_ action: Action) {
-        logAction(action, level: .debug)
+        logAction(action)
         actionObserver?(action)
 
         let oldState = state
@@ -191,14 +199,14 @@ extension AsyncViewModelProtocol {
         let results = await executeParallelOperations(effects)
         await processParallelResults(effects: effects, results: results)
     }
-    
+
     private func processSleepThenEffect(
         id: CancelID?,
         duration: TimeInterval,
         action: Action
     ) async {
         cancelExistingTask(id: id)
-        
+
         let task = Task { [timer] in
             do {
                 try await timer.sleep(for: duration)
@@ -214,17 +222,17 @@ extension AsyncViewModelProtocol {
                 // Sleep이 취소된 경우 무시
             }
         }
-        
+
         registerTask(task, id: id)
     }
-    
+
     private func processTimerEffect(
         id: CancelID?,
         interval: TimeInterval,
         action: Action
     ) {
         cancelExistingTask(id: id)
-        
+
         let task = Task { [timer] in
             for await _ in timer.stream(interval: interval) {
                 await MainActor.run { [weak self] in
@@ -232,7 +240,7 @@ extension AsyncViewModelProtocol {
                 }
             }
         }
-        
+
         registerTask(task, id: id)
     }
 
@@ -250,7 +258,7 @@ extension AsyncViewModelProtocol {
         let startTime = CFAbsoluteTimeGetCurrent()
         let result = await operation()
         let duration = CFAbsoluteTimeGetCurrent() - startTime
-        logPerformance("Effect operation", duration: duration, level: .debug)
+        logPerformance("Effect operation", duration: duration)
         return result
     }
 
@@ -294,85 +302,71 @@ extension AsyncViewModelProtocol {
 
     private func logStateChangeIfNeeded(from oldState: State, to newState: State) {
         guard oldState != newState else { return }
-        
-        let logger = LoggerConfiguration.logger
-        if logger.options.showStateDiffOnly {
-            let diff = calculateStateDiff(from: oldState, to: newState)
-            if !diff.isEmpty {
-                logStateDiff(diff)
-            }
-        } else {
+
+        // 개별 설정 체크
+        guard loggingConfig.isEnabled else {
+            stateChangeObserver?(oldState, newState)
+            return
+        }
+
+        // loggingConfig.options는 커스텀 설정이 있으면 커스텀, 없으면 전역 설정 반환
+        let shouldLogStateChange = loggingConfig.isCategoryEnabled(.stateChange)
+
+        if shouldLogStateChange {
             logStateChange(from: oldState, to: newState)
         }
-        
+
         stateChangeObserver?(oldState, newState)
     }
-    
+
     private func logEffectsIfNeeded(_ effects: [AsyncEffect<Action, CancelID>]) {
         guard !effects.isEmpty else { return }
-        
-        let logger = LoggerConfiguration.logger
-        if logger.options.groupEffects {
+
+        // 개별 설정 체크
+        guard loggingConfig.isEnabled,
+              loggingConfig.isCategoryEnabled(.effect)
+        else {
+            return
+        }
+
+        // loggingConfig.options는 커스텀 설정이 있으면 커스텀, 없으면 전역 설정 반환
+        let effectiveOptions = loggingConfig.options
+
+        // effectFormat에 따라 자동으로 그룹화 여부 결정
+        // compact/standard: 그룹화하여 요약 표시
+        // detailed: 개별적으로 상세 표시
+        switch effectiveOptions.effectFormat {
+        case .compact, .standard:
             logEffects(effects)
-        } else {
+        case .detailed:
             for effect in effects {
                 logEffect(effect)
             }
         }
     }
 
-    public func handleError(_: SendableError) {
-    }
+    public func handleError(_: SendableError) {}
 
     // MARK: - Logging Helpers
 
-    private func calculateStateDiff(
-        from oldState: State,
-        to newState: State
-    ) -> [String: (old: String, new: String)] {
-        var changes: [String: (old: String, new: String)] = [:]
-        
-        let oldMirror = Mirror(reflecting: oldState)
-        let newMirror = Mirror(reflecting: newState)
-        
-        for (oldChild, newChild) in zip(oldMirror.children, newMirror.children) {
-            guard let label = oldChild.label else { continue }
-            
-            let oldValue = String(describing: oldChild.value)
-            let newValue = String(describing: newChild.value)
-            
-            if oldValue != newValue {
-                changes[label] = (old: oldValue, new: newValue)
-            }
-        }
-        
-        return changes
-    }
-    
-    private func logStateDiff(_ changes: [String: (old: String, new: String)]) {
-        let viewModelName = String(describing: Self.self)
-        
-        LoggerConfiguration.logger.logStateDiff(
-            changes: changes,
-            viewModel: viewModelName,
-            file: #file,
-            function: #function,
-            line: #line
-        )
-    }
-    
     private func logEffects(_ effects: [AsyncEffect<Action, CancelID>]) {
         let effectDescriptions = effects.map { String(describing: $0) }
         let viewModelName = String(describing: Self.self)
-        
-        LoggerConfiguration.logger.logEffects(
+        let config = AsyncViewModelConfiguration.shared
+        let logger = config.logger(for: loggingConfig.loggerMode)
+
+        logger.logEffects(
             effectDescriptions,
             viewModel: viewModelName,
             file: #file,
             function: #function,
             line: #line
         )
-        
+
+        // Interceptor에 이벤트 전달
+        let event = LogEvent.effects(effectDescriptions)
+        config.dispatch(event, viewModel: viewModelName, file: #file, function: #function, line: #line)
+
         for effect in effects {
             effectObserver?(effect)
         }
@@ -426,22 +420,48 @@ extension AsyncViewModelProtocol {
 
     public func logAction(
         _ action: Action,
-        level: LogLevel = .info,
         file: String = #file,
         function: String = #function,
         line: Int = #line
     ) {
-        let actionDescription = String(describing: action)
+        // 개별 설정 체크
+        let effectiveOptions = loggingConfig.options
+        guard loggingConfig.isEnabled,
+              loggingConfig.isCategoryEnabled(.action)
+        else {
+            return
+        }
+
+        let config = AsyncViewModelConfiguration.shared
+        let logger = config.logger(for: loggingConfig.loggerMode)
         let viewModelName = String(describing: Self.self)
 
-        LoggerConfiguration.logger.logAction(
+        // LogFormat에 따라 Action 포맷팅
+        let actionDescription: String
+        switch effectiveOptions.actionFormat {
+        case .compact:
+            // compact: case 이름만 (중첩 타입 제거)
+            actionDescription = extractCaseName(from: action)
+        case .standard:
+            // standard: case 이름 + associated value (기본 설명)
+            actionDescription = String(describing: action)
+        case .detailed:
+            // detailed: 전체 경로 + PrettyPrint
+            let printer = PrettyPrinter(maxDepth: effectiveOptions.maxDepth)
+            actionDescription = printer.format(action)
+        }
+
+        logger.logAction(
             actionDescription,
             viewModel: viewModelName,
-            level: level,
             file: file,
             function: function,
             line: line
         )
+
+        // Interceptor에 이벤트 전달
+        let event = LogEvent.action(actionDescription)
+        config.dispatch(event, viewModel: viewModelName, file: file, function: function, line: line)
     }
 
     public func logStateChange(
@@ -451,18 +471,44 @@ extension AsyncViewModelProtocol {
         function: String = #function,
         line: Int = #line
     ) {
+        let config = AsyncViewModelConfiguration.shared
+        let logger = config.logger(for: loggingConfig.loggerMode)
+        let effectiveOptions = loggingConfig.options
         let viewModelName = String(describing: Self.self)
-        let oldStateFormatted = formatStateForLogging(oldState)
-        let newStateFormatted = formatStateForLogging(newState)
 
-        LoggerConfiguration.logger.logStateChange(
-            from: oldStateFormatted,
-            to: newStateFormatted,
+        // LogFormat에 따라 PrettyPrint 사용 여부 결정
+        let usePrettyPrint: Bool
+        switch effectiveOptions.stateFormat {
+        case .compact:
+            usePrettyPrint = false
+        case .standard, .detailed:
+            usePrettyPrint = true
+        }
+
+        // StateSnapshot 생성
+        let oldSnapshot = StateSnapshot(
+            from: oldState,
+            maxDepth: effectiveOptions.maxDepth,
+            usePrettyPrint: usePrettyPrint
+        )
+        let newSnapshot = StateSnapshot(
+            from: newState,
+            maxDepth: effectiveOptions.maxDepth,
+            usePrettyPrint: usePrettyPrint
+        )
+        let stateChange = StateChangeInfo(oldState: oldSnapshot, newState: newSnapshot)
+
+        logger.logStateChange(
+            stateChange,
             viewModel: viewModelName,
             file: file,
             function: function,
             line: line
         )
+
+        // Interceptor에 이벤트 전달
+        let event = LogEvent.stateChange(stateChange)
+        config.dispatch(event, viewModel: viewModelName, file: file, function: function, line: line)
 
         stateChangeObserver?(oldState, newState)
     }
@@ -472,6 +518,12 @@ extension AsyncViewModelProtocol {
     }
 
     private func formatValueForLogging(_ value: Any, indentLevel: Int) -> String {
+        // 깊이 제한 체크
+        let effectiveOptions = loggingConfig.options
+        if indentLevel >= effectiveOptions.maxDepth {
+            return "[...]"
+        }
+
         let indent = String(repeating: "  ", count: indentLevel)
         let nextIndent = String(repeating: "  ", count: indentLevel + 1)
 
@@ -479,9 +531,11 @@ extension AsyncViewModelProtocol {
 
         switch mirror.displayStyle {
         case .none, .optional, .enum:
-            return String(describing: value)
+            let result = String(describing: value)
+            return truncateIfNeeded(result)
         case .collection, .dictionary, .set:
-            return String(describing: value)
+            let result = String(describing: value)
+            return truncateIfNeeded(result)
         case .struct, .class:
             var result = "\(mirror.subjectType)("
 
@@ -499,12 +553,22 @@ extension AsyncViewModelProtocol {
             }
             result += ")"
 
-            return result
+            return truncateIfNeeded(result)
         case .tuple:
-            return String(describing: value)
+            let result = String(describing: value)
+            return truncateIfNeeded(result)
         @unknown default:
-            return String(describing: value)
+            let result = String(describing: value)
+            return truncateIfNeeded(result)
         }
+    }
+
+    private func truncateIfNeeded(_ value: String) -> String {
+        let effectiveOptions = loggingConfig.options
+        if value.count > effectiveOptions.maxValueLength {
+            return String(value.prefix(effectiveOptions.maxValueLength)) + "..."
+        }
+        return value
     }
 
     public func logEffect(
@@ -513,10 +577,30 @@ extension AsyncViewModelProtocol {
         function: String = #function,
         line: Int = #line
     ) {
-        let viewModelName = String(describing: Self.self)
-        let effectDescription = String(describing: effect)
+        // 개별 설정 체크
+        guard loggingConfig.isEnabled,
+              loggingConfig.isCategoryEnabled(.effect)
+        else {
+            effectObserver?(effect)
+            return
+        }
 
-        LoggerConfiguration.logger.logEffect(
+        let config = AsyncViewModelConfiguration.shared
+        let logger = config.logger(for: loggingConfig.loggerMode)
+        let effectiveOptions = loggingConfig.options
+        let viewModelName = String(describing: Self.self)
+
+        // LogFormat에 따라 Effect 포맷팅
+        let effectDescription: String
+        switch effectiveOptions.effectFormat {
+        case .compact:
+            effectDescription = String(describing: effect)
+        case .standard, .detailed:
+            let printer = PrettyPrinter(maxDepth: effectiveOptions.maxDepth)
+            effectDescription = printer.format(effect)
+        }
+
+        logger.logEffect(
             effectDescription,
             viewModel: viewModelName,
             file: file,
@@ -524,80 +608,136 @@ extension AsyncViewModelProtocol {
             line: line
         )
 
+        // Interceptor에 이벤트 전달
+        let event = LogEvent.effect(effectDescription)
+        config.dispatch(event, viewModel: viewModelName, file: file, function: function, line: line)
+
         effectObserver?(effect)
     }
 
     public func logPerformance(
         _ operation: String,
         duration: TimeInterval,
-        level: LogLevel = .info,
         file: String = #file,
         function: String = #function,
         line: Int = #line
     ) {
+        // 개별 설정 체크
+        guard loggingConfig.isEnabled,
+              loggingConfig.isCategoryEnabled(.performance)
+        else {
+            performanceObserver?(operation, duration)
+            return
+        }
+
+        let config = AsyncViewModelConfiguration.shared
+        let logger = config.logger(for: loggingConfig.loggerMode)
         let viewModelName = String(describing: Self.self)
 
-        LoggerConfiguration.logger.logPerformance(
+        logger.logPerformance(
             operation: operation,
             duration: duration,
             viewModel: viewModelName,
-            level: level,
             file: file,
             function: function,
             line: line
         )
+
+        // Interceptor에 이벤트 전달
+        let event = LogEvent.performance(operation: operation, duration: duration)
+        config.dispatch(event, viewModel: viewModelName, file: file, function: function, line: line)
 
         performanceObserver?(operation, duration)
     }
 
     public func logError(
         _ error: SendableError,
-        level: LogLevel = .error,
         file: String = #file,
         function: String = #function,
         line: Int = #line
     ) {
+        // 개별 설정 체크 (에러는 항상 로깅 가능하도록 허용)
+        guard loggingConfig.isEnabled,
+              loggingConfig.isCategoryEnabled(.error)
+        else {
+            return
+        }
+
+        let config = AsyncViewModelConfiguration.shared
+        let logger = config.logger(for: loggingConfig.loggerMode)
         let viewModelName = String(describing: Self.self)
 
-        LoggerConfiguration.logger.logError(
+        logger.logError(
             error,
             viewModel: viewModelName,
-            level: level,
             file: file,
             function: function,
             line: line
         )
+
+        // Interceptor에 이벤트 전달
+        let event = LogEvent.error(error)
+        config.dispatch(event, viewModel: viewModelName, file: file, function: function, line: line)
     }
-    
+
     /// deinit에서 호출 가능한 nonisolated 로깅 메서드
     ///
     /// deinit은 actor isolation을 가질 수 없으므로, 이 메서드를 통해 로깅합니다.
     ///
     /// - Parameters:
     ///   - taskCount: 취소할 활성 Task 수
-    nonisolated public func logDeinit(taskCount: Int) {
+    public nonisolated func logDeinit(taskCount: Int) {
         let viewModelName = String(describing: Self.self)
-        
+
         Task { @MainActor in
+            let config = AsyncViewModelConfiguration.shared
+            let logger = config.logger
+
             if taskCount > 0 {
-                LoggerConfiguration.logger.logAction(
-                    "🔄 deinit - Cancelling \(taskCount) active task(s)",
+                let message = "🔄 deinit - Cancelling \(taskCount) active task(s)"
+                logger.logAction(
+                    message,
                     viewModel: viewModelName,
-                    level: .info,
                     file: #file,
                     function: "deinit",
                     line: #line
                 )
+
+                // Interceptor에 이벤트 전달
+                let event = LogEvent.action(message)
+                config.dispatch(event, viewModel: viewModelName, file: #file, function: "deinit", line: #line)
             } else {
-                LoggerConfiguration.logger.logAction(
-                    "✅ deinit - No active tasks",
+                let message = "✅ deinit - No active tasks"
+                logger.logAction(
+                    message,
                     viewModel: viewModelName,
-                    level: .debug,
                     file: #file,
                     function: "deinit",
                     line: #line
                 )
+
+                // Interceptor에 이벤트 전달
+                let event = LogEvent.action(message)
+                config.dispatch(event, viewModel: viewModelName, file: #file, function: "deinit", line: #line)
             }
         }
+    }
+
+    // MARK: - Private Helpers
+
+    /// Action에서 case 이름만 추출 (중첩 타입 제거)
+    ///
+    /// - Parameter action: Action 값
+    /// - Returns: case 이름만 (예: "increment", "fetchData")
+    private func extractCaseName(from action: Action) -> String {
+        let description = String(describing: action)
+
+        // "ModuleName.EnumName.caseName(...)" -> "caseName"
+        // "caseName(param: value)" -> "caseName"
+        let components = description.components(separatedBy: ".")
+        let lastComponent = components.last ?? description
+
+        // associated value가 있는 경우 제거
+        return lastComponent.components(separatedBy: "(").first ?? lastComponent
     }
 }

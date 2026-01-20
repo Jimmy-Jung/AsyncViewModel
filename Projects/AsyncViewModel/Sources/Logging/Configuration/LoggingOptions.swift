@@ -63,26 +63,33 @@ public enum LogFormat: Sendable, Codable {
 // MARK: - LoggingOptions
 
 public struct LoggingOptions: Sendable, Codable {
-    public var format: LogFormat
+    public var actionFormat: LogFormat
+    public var stateFormat: LogFormat
+    public var effectFormat: LogFormat
     public var performanceThreshold: PerformanceThreshold?
-    public var showStateDiffOnly: Bool
-    public var groupEffects: Bool
     public var showZeroPerformance: Bool
-    public var minimumLevel: LogLevel
+
+    /// 상태 출력 시 최대 깊이 (기본값: 5)
+    public var maxDepth: Int
+
+    /// 값 출력 시 최대 문자열 길이 (기본값: 500)
+    public var maxValueLength: Int
 
     public init(
-        format: LogFormat = .standard,
+        actionFormat: LogFormat = .standard,
+        stateFormat: LogFormat = .standard,
+        effectFormat: LogFormat = .standard,
         performanceThreshold: PerformanceThreshold? = nil,
-        showStateDiffOnly: Bool = true,
-        groupEffects: Bool = true,
         showZeroPerformance: Bool = false,
-        minimumLevel: LogLevel = .verbose
+        maxDepth: Int = 5,
+        maxValueLength: Int = 500
     ) {
-        self.format = format
+        self.actionFormat = actionFormat
+        self.stateFormat = stateFormat
+        self.effectFormat = effectFormat
         self.performanceThreshold = performanceThreshold
-        self.showStateDiffOnly = showStateDiffOnly
-        self.groupEffects = groupEffects
         self.showZeroPerformance = showZeroPerformance
-        self.minimumLevel = minimumLevel
+        self.maxDepth = maxDepth
+        self.maxValueLength = maxValueLength
     }
 }
