@@ -66,7 +66,6 @@ final class MockLogger: ViewModelLogger {
     var loggedStateChanges: [(from: String, to: String)] = []
     var loggedEffects: [String] = []
     var loggedEffectsGroups: [[String]] = []
-    var loggedStateDiffs: [[String: (old: String, new: String)]] = []
     var loggedPerformance: [(operation: String, duration: Double)] = []
     var loggedErrors: [(error: SendableError, level: LogLevel)] = []
 
@@ -110,16 +109,6 @@ final class MockLogger: ViewModelLogger {
         line _: Int
     ) {
         loggedEffectsGroups.append(effects)
-    }
-
-    func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel _: String,
-        file _: String,
-        function _: String,
-        line _: Int
-    ) {
-        loggedStateDiffs.append(changes)
     }
 
     func logPerformance(
@@ -204,8 +193,6 @@ struct ViewModelLoggerTests {
     @Test("커스텀 로거가 상태 변경을 기록함")
     func customLoggerLogsStateChange() async {
         let mockLogger = MockLogger()
-        // State diff 대신 전체 State 로깅 사용
-        mockLogger.options.showStateDiffOnly = false
         LoggerConfiguration.setLogger(mockLogger)
 
         let viewModel = TestViewModel()
@@ -222,31 +209,9 @@ struct ViewModelLoggerTests {
         LoggerConfiguration.resetToDefault()
     }
 
-    @Test("State diff가 변경된 필드만 기록함")
-    func stateDiffLogsOnlyChangedFields() async {
+    @Test("Effect 포맷이 작동함")
+    func effectFormatWorks() async {
         let mockLogger = MockLogger()
-        // 기본값은 showStateDiffOnly = true
-        LoggerConfiguration.setLogger(mockLogger)
-
-        let viewModel = TestViewModel()
-
-        // 액션 전송
-        viewModel.send(.increment)
-
-        // State diff가 기록되었는지 확인
-        #expect(mockLogger.loggedStateDiffs.count == 1)
-        #expect(mockLogger.loggedStateDiffs[0]["count"] != nil)
-        #expect(mockLogger.loggedStateDiffs[0]["count"]?.old == "0")
-        #expect(mockLogger.loggedStateDiffs[0]["count"]?.new == "1")
-
-        // 정리
-        LoggerConfiguration.resetToDefault()
-    }
-
-    @Test("Effect 그룹화가 작동함")
-    func effectGroupingWorks() async {
-        let mockLogger = MockLogger()
-        // 기본값은 groupEffects = true
         LoggerConfiguration.setLogger(mockLogger)
 
         let viewModel = TestViewModel()
@@ -254,9 +219,8 @@ struct ViewModelLoggerTests {
         // 액션 전송 (none이 아닌 effect 반환)
         viewModel.send(.increment)
 
-        // Effect 그룹이 기록되었는지 확인 (increment는 effect를 반환하지 않으므로 0)
-        // 그룹화 옵션만 테스트
-        #expect(mockLogger.options.groupEffects == true)
+        // Effect 포맷 기본값 확인
+        #expect(mockLogger.options.effectFormat == .standard)
 
         // 정리
         LoggerConfiguration.resetToDefault()
