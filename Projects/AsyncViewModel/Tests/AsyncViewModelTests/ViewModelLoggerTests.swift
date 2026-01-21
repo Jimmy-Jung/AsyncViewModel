@@ -287,7 +287,7 @@ struct ViewModelLoggerTests {
         AsyncViewModelConfiguration.shared.changeLogger(logger)
 
         // 에러 없이 초기화되어야 함
-        let viewModel = TestViewModel()
+        _ = TestViewModel()
 
         #expect(AsyncViewModelConfiguration.shared.logger is OSLogViewModelLogger)
 
@@ -347,8 +347,11 @@ struct ViewModelLoggerTests {
         // 관찰자가 호출되었는지 확인 (로깅 설정에 따라 여러 번 호출될 수 있음)
         #expect(observedChanges.count >= 1)
         // 마지막 변경 확인
-        let lastChange = observedChanges.last!
-        #expect(lastChange.old.count == 0)
+        guard let lastChange = observedChanges.last else {
+            Issue.record("No state changes observed")
+            return
+        }
+        #expect(lastChange.old.isEmpty)
         #expect(lastChange.new.count == 1)
 
         // 정리

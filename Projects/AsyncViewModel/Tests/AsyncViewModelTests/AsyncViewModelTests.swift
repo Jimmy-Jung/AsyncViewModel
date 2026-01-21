@@ -5,6 +5,8 @@
 //  Created by 정준영 on 2025/8/3.
 //
 
+// swiftlint:disable main_actor_usage
+
 @testable import AsyncViewModelCore
 import Foundation
 import Testing
@@ -231,6 +233,7 @@ struct AsyncViewModelTests {
 
     enum MockError: Error, LocalizedError, Sendable {
         case simulatedFailure
+
         var errorDescription: String? { "Simulated Failure" }
     }
 
@@ -324,17 +327,15 @@ struct AsyncViewModelTests {
         #expect(testStore.state.isLongTaskRunning == true)
 
         // 작업이 tasks 딕셔너리에 저장될 때까지 기다림
-        try await testStore.wait(for: { _ in
-            viewModel.tasks[MockViewModel.CancelID.longRunningTask] != nil
-        }, timeout: 1.0)
-        #expect(viewModel.tasks[MockViewModel.CancelID.longRunningTask] != nil)
+        try await testStore.waitUntilTaskStarts(id: MockViewModel.CancelID.longRunningTask)
+        #expect(testStore.hasActiveTask(id: MockViewModel.CancelID.longRunningTask))
 
         // When
         testStore.send(MockViewModel.Input.cancelLongRunningTask)
 
         // Then
-        try await testStore.wait(for: { _ in viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil })
-        #expect(viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil)
+        try await testStore.waitUntilTaskCompletes(id: MockViewModel.CancelID.longRunningTask)
+        #expect(testStore.hasActiveTask(id: MockViewModel.CancelID.longRunningTask) == false)
     }
 
     @Test("Merge Effect가 모든 내부 Effect를 실행해야 한다")
@@ -365,20 +366,32 @@ struct AsyncViewModelTests {
         // 첫 번째 작업을 시작 (1초 소요)
         testStore.send(.triggerRestartableTask(value: "first"))
 
-        // 짧은 지연 후 두 번째 작업을 시작하여 이전 작업을 취소
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1초
+        // Effect가 등록될 때까지 대기
+        try await testStore.waitUntilTaskStarts(id: MockViewModel.CancelID.restartableTask)
+        #expect(testStore.hasActiveTask(id: MockViewModel.CancelID.restartableTask))
+
+        // 가상 시간을 0.1초 진행 (첫 번째 작업이 완료되기 전 - 1초 필요)
+        await testStore.tick(by: 0.1)
+
+        // 두 번째 작업을 시작하여 이전 작업을 취소
         testStore.send(.triggerRestartableTask(value: "second"))
+
+        // 두 번째 Effect가 등록될 때까지 짧게 대기
+        try await Task.sleep(nanoseconds: 10_000_000) // 0.01초
+
+        // 가상 시간을 1초 더 진행하여 두 번째 작업 완료
+        await testStore.tick(by: 1.0)
 
         // Then
         // 두 번째 작업이 완료될 때까지 기다림 (최종 결과가 "second"가 될 때까지)
-        try await testStore.wait(for: { $0.restartableTaskResult == "second" }, timeout: 2.0)
+        try await testStore.wait(for: { $0.restartableTaskResult == "second" }, timeout: 1.0)
 
         // 최종 상태는 두 번째 작업의 결과여야 함
         #expect(testStore.state.restartableTaskResult == "second")
 
         // 작업 완료 후 tasks 딕셔너리는 비어있어야 함
-        try await testStore.wait(for: { _ in viewModel.tasks[MockViewModel.CancelID.restartableTask] == nil })
-        #expect(viewModel.tasks[MockViewModel.CancelID.restartableTask] == nil)
+        try await testStore.waitUntilTaskCompletes(id: MockViewModel.CancelID.restartableTask)
+        #expect(testStore.hasActiveTask(id: MockViewModel.CancelID.restartableTask) == false)
     }
 
     @Test("완료된 작업은 tasks 딕셔너리에서 자동 정리되어야 한다")
@@ -389,21 +402,24 @@ struct AsyncViewModelTests {
         let taskID = MockViewModel.CancelID.longRunningTask
 
         // When
-        // 짧은 작업을 시작
-        testStore.send(.triggerLongRunningTask(duration: 100_000_000)) // 0.1초
+        // 짧은 작업을 시작 (0.1초 = 100_000_000 나노초)
+        testStore.send(.triggerLongRunningTask(duration: 100_000_000))
 
         // Then
         // 작업이 시작되고 tasks 딕셔너리에 등록될 때까지 기다림
-        try await testStore.wait(for: { _ in viewModel.tasks[taskID] != nil })
-        #expect(viewModel.tasks[taskID] != nil)
+        try await testStore.waitUntilTaskStarts(id: taskID)
+        #expect(testStore.hasActiveTask(id: taskID))
+
+        // 가상 시간을 0.1초 진행하여 작업 완료
+        await testStore.tick(by: 0.1)
 
         // 작업이 완료되고 isLongTaskRunning이 false로 바뀔 때까지 기다림
         try await testStore.wait(for: { !$0.isLongTaskRunning }, timeout: 1.0)
         #expect(testStore.state.isLongTaskRunning == false)
 
         // 작업 완료 후 tasks 딕셔너리에서 해당 ID가 제거되었는지 확인
-        try await testStore.wait(for: { _ in viewModel.tasks[taskID] == nil })
-        #expect(viewModel.tasks[taskID] == nil)
+        try await testStore.waitUntilTaskCompletes(id: taskID)
+        #expect(testStore.hasActiveTask(id: taskID) == false)
     }
 
     @Test("작업 취소 시 후속 액션이 발행되지 않아야 한다")
@@ -425,8 +441,8 @@ struct AsyncViewModelTests {
 
         // Then
         // tasks 딕셔너리에서 즉시 제거되는지 확인
-        try await testStore.wait(for: { _ in viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil })
-        #expect(viewModel.tasks[MockViewModel.CancelID.longRunningTask] == nil)
+        try await testStore.waitUntilTaskCompletes(id: MockViewModel.CancelID.longRunningTask)
+        #expect(testStore.hasActiveTask(id: MockViewModel.CancelID.longRunningTask) == false)
 
         // 작업의 원래 소요 시간(2초)보다 더 오래 기다림
         try await Task.sleep(nanoseconds: 2_500_000_000)
@@ -575,3 +591,5 @@ struct AsyncViewModelTests {
         #expect(actualResults == expectedResults)
     }
 }
+
+// swiftlint:enable main_actor_usage
