@@ -16,8 +16,8 @@ import Foundation
 public enum LogEvent: Sendable {
     /// Action 로그
     ///
-    /// - Parameter action: Action 설명
-    case action(String)
+    /// - Parameter action: Action 정보
+    case action(ActionInfo)
 
     /// State 변경 로그
     ///
@@ -26,20 +26,18 @@ public enum LogEvent: Sendable {
 
     /// 단일 Effect 로그
     ///
-    /// - Parameter effect: Effect 설명
-    case effect(String)
+    /// - Parameter effect: Effect 정보
+    case effect(EffectInfo)
 
     /// 여러 Effect 로그
     ///
-    /// - Parameter effects: Effect 설명 배열
-    case effects([String])
+    /// - Parameter effects: Effect 정보 배열
+    case effects([EffectInfo])
 
     /// 성능 로그
     ///
-    /// - Parameters:
-    ///   - operation: 작업 이름
-    ///   - duration: 소요 시간
-    case performance(operation: String, duration: TimeInterval)
+    /// - Parameter performance: 성능 측정 정보
+    case performance(PerformanceInfo)
 
     /// 에러 로그
     ///
