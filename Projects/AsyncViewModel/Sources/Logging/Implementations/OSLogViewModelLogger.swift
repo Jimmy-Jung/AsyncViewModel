@@ -8,24 +8,50 @@
 import Foundation
 import os.log
 
+// MARK: - OSLogViewModelLogger
+
+/// OSLog 기반 ViewModel 로거
+///
+/// Apple의 통합 로깅 시스템(os.log)을 사용하여 로그를 출력합니다.
+/// LogFormatter를 통해 포맷팅을 위임하므로 커스텀 포맷터를 주입할 수 있습니다.
+///
+/// ## 사용 예시
+///
+/// ```swift
+/// // 기본 사용
+/// let logger = OSLogViewModelLogger()
+///
+/// // 커스텀 subsystem
+/// let logger = OSLogViewModelLogger(subsystem: "com.myapp")
+///
+/// // 커스텀 포맷터
+/// let logger = OSLogViewModelLogger(formatter: JSONLogFormatter())
+/// ```
 public struct OSLogViewModelLogger: ViewModelLogger {
     public var options: LoggingOptions = .init()
+    public let formatter: LogFormatter
     private let subsystem: String
 
-    public init(subsystem: String = "com.jimmy.AsyncViewModel") {
+    public init(
+        subsystem: String = "com.jimmy.AsyncViewModel",
+        formatter: LogFormatter = DefaultLogFormatter()
+    ) {
         self.subsystem = subsystem
+        self.formatter = formatter
     }
 
+    // MARK: - ViewModelLogger Implementation
+
     public func logAction(
-        _ action: String,
+        _ action: ActionInfo,
         viewModel: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
-        let message = "Action: \(action)"
-        // LogCategory.action → info
+        let actionDescription = formatter.formatAction(action, format: options.actionFormat)
+        let message = "Action: \(actionDescription)"
         logger.info("\(message, privacy: .public)")
     }
 
@@ -37,123 +63,52 @@ public struct OSLogViewModelLogger: ViewModelLogger {
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
-
-        switch options.stateFormat {
-        case .compact:
-            // 변경된 프로퍼티만 한 줄로 출력
-            if stateChange.changes.isEmpty {
-                logger.info("State: no changes")
-            } else {
-                let changedProps = stateChange.changes.map { change in
-                    "\(change.propertyName): \(change.oldValue.value) → \(change.newValue.value)"
-                }.joined(separator: ", ")
-                let message = "State: \(changedProps)"
-                logger.info("\(message, privacy: .public)")
-            }
-
-        case .standard:
-            // 변경 정보를 구조화된 형태로 출력
-            if stateChange.changes.isEmpty {
-                logger.info("State unchanged")
-            } else {
-                let changeDescriptions = stateChange.changes.map { change in
-                    "  \(change.propertyName): \(change.oldValue.value) → \(change.newValue.value)"
-                }.joined(separator: "\n")
-                let message = "State changed (\(stateChange.changes.count) properties):\n\(changeDescriptions)"
-                logger.info("\(message, privacy: .public)")
-            }
-
-        case .detailed:
-            // 전체 State 구조를 출력
-            let oldStateStr = stateChange.oldState.detailedDescription
-            let newStateStr = stateChange.newState.detailedDescription
-
-            if stateChange.changes.isEmpty {
-                logger.info("State unchanged:\n\(newStateStr, privacy: .public)")
-            } else {
-                let changeDescriptions = stateChange.changes.map { change in
-                    "  \(change.propertyName) (\(change.oldValue.typeName)):\n    old: \(change.oldValue.value)\n    new: \(change.newValue.value)"
-                }.joined(separator: "\n")
-
-                let message = """
-                State changed (\(stateChange.changes.count) properties):
-                \(changeDescriptions)
-
-                Full state:
-                \(newStateStr)
-                """
-                logger.info("\(message, privacy: .public)")
-            }
-        }
+        let message = formatter.formatStateChange(stateChange, format: options.stateFormat)
+        logger.info("\(message, privacy: .public)")
     }
 
     public func logEffect(
-        _ effect: String,
+        _ effect: EffectInfo,
         viewModel: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
-        // LogCategory.effect → debug
-        logger.debug("Effect: \(effect, privacy: .public)")
+        let effectDescription = formatter.formatEffect(effect, format: options.effectFormat)
+        logger.debug("Effect: \(effectDescription, privacy: .public)")
     }
 
     public func logEffects(
-        _ effects: [String],
+        _ effects: [EffectInfo],
         viewModel: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
-        // LogCategory.effect → debug
+        let messages = formatter.formatEffects(effects, format: options.effectFormat)
 
-        switch options.effectFormat {
-        case .compact:
-            let message = "\(effects.count) effects"
+        for message in messages {
             logger.debug("\(message, privacy: .public)")
-
-        case .standard:
-            let summary = effects.map { effect in
-                effect.split(separator: "(").first.map(String.init) ?? effect
-            }.joined(separator: ", ")
-            let message = "Effects[\(effects.count)]: \(summary)"
-            logger.debug("\(message, privacy: .public)")
-
-        case .detailed:
-            for (index, effect) in effects.enumerated() {
-                let message = "Effect \(index + 1)/\(effects.count): \(effect)"
-                logger.debug("\(message, privacy: .public)")
-            }
         }
     }
 
     public func logPerformance(
-        operation: String,
-        duration: TimeInterval,
+        _ performance: PerformanceInfo,
         viewModel: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
-        let threshold: TimeInterval
-        if let performanceThreshold = options.performanceThreshold {
-            threshold = performanceThreshold.threshold
-        } else {
-            let operationType = PerformanceThreshold.infer(from: operation)
-            threshold = operationType.recommendedThreshold
-        }
-
-        if !options.showZeroPerformance, duration < threshold {
+        guard let message = formatter.formatPerformance(performance, options: options) else {
             return
         }
 
         let logger = createLogger(category: viewModel)
-        let message = "Performance - \(operation): \(String(format: "%.3f", duration))s"
 
-        // LogCategory.performance → debug (임계값 초과 시 warning)
-        if duration >= threshold {
+        // 임계값 초과 시 warning, 아니면 debug
+        if performance.exceededThreshold {
             logger.warning("\(message, privacy: .public)")
         } else {
             logger.debug("\(message, privacy: .public)")
@@ -168,10 +123,11 @@ public struct OSLogViewModelLogger: ViewModelLogger {
         line _: Int
     ) {
         let logger = createLogger(category: viewModel)
-        let message = "Error: \(error.localizedDescription) [\(error.domain):\(error.code)]"
-        // LogCategory.error → error
+        let message = formatter.formatError(error)
         logger.error("\(message, privacy: .public)")
     }
+
+    // MARK: - Private Helpers
 
     private func createLogger(category: String) -> os.Logger {
         os.Logger(subsystem: subsystem, category: category)
