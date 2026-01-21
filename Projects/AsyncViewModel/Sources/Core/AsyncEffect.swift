@@ -16,7 +16,7 @@ public enum AsyncEffect<Action: Equatable & Sendable, CancelID: Hashable & Senda
     case action(Action)
     case run(id: CancelID? = nil, operation: AsyncOperation<Action>)
     case cancel(id: CancelID)
-    
+
     /// 여러 Effect를 병렬로 실행합니다.
     ///
     /// 처리 전략:
@@ -41,7 +41,7 @@ public enum AsyncEffect<Action: Equatable & Sendable, CancelID: Hashable & Senda
     /// return [.sleepThen(id: .timer, for: 1.0, action: .timerFired)]
     /// ```
     case sleepThen(id: CancelID?, duration: TimeInterval, action: Action)
-    
+
     /// 지정된 간격으로 반복되는 타이머를 시작합니다. (timer 주입 가능)
     ///
     /// 사용 예시:
@@ -92,7 +92,7 @@ public extension AsyncEffect {
             }
         })
     }
-    
+
     static func runCatchingError(
         id: CancelID? = nil,
         errorAction: @escaping @Sendable (SendableError) -> Action,
@@ -104,50 +104,6 @@ public extension AsyncEffect {
                 return .action(action)
             } catch {
                 return .action(errorAction(SendableError(error)))
-            }
-        })
-    }
-
-    // MARK: - Time-based Effects (Legacy - 호환성 유지)
-    
-    /// 지정된 시간만큼 대기합니다.
-    ///
-    /// **참고**: 테스트 가능한 타이머를 사용하려면 `.sleepThen(id:for:action:)`을 권장합니다.
-    ///
-    /// - Parameters:
-    ///   - id: 취소 가능한 ID
-    ///   - duration: 대기 시간 (초)
-    @available(*, deprecated, message: "테스트 가능한 .sleepThen(id:for:action:)을 사용하세요")
-    static func sleep(
-        id: CancelID? = nil,
-        for duration: TimeInterval
-    ) -> AsyncEffect<Action, CancelID> {
-        return .run(id: id, operation: AsyncOperation { () async -> AsyncOperationResult<Action> in
-            do {
-                try await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-                return .none
-            } catch {
-                return .error(SendableError(error))
-            }
-        })
-    }
-
-    /// 지정된 시간 대기 후 Action을 실행합니다.
-    ///
-    /// **참고**: 이 메서드는 Task.sleep을 직접 사용하므로 테스트에서 실제 시간을 기다려야 합니다.
-    /// 테스트 가능한 타이머를 사용하려면 `.sleepThen(id:for:action:)`을 권장합니다.
-    @available(*, deprecated, message: "테스트 가능한 .sleepThen(id:for:action:)을 사용하세요")
-    static func sleepThen(
-        id: CancelID? = nil,
-        for duration: TimeInterval,
-        action: Action
-    ) -> AsyncEffect<Action, CancelID> {
-        return .run(id: id, operation: AsyncOperation { () async -> AsyncOperationResult<Action> in
-            do {
-                try await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-                return .action(action)
-            } catch {
-                return .error(SendableError(error))
             }
         })
     }
