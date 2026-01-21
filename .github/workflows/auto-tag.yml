@@ -1,5 +1,10 @@
 name: Auto Tag on Merge
 
+# release/* 브랜치가 main에 merge되면:
+# 1. 브랜치 이름에서 버전 추출 (예: release/1.0.0 → 1.0.0)
+# 2. 태그 생성 및 push
+# 3. Release 워크플로우 자동 트리거 (빌드/테스트/Release 생성)
+
 on:
   pull_request:
     types: [closed]
@@ -14,6 +19,9 @@ jobs:
     # release/* 브랜치가 main에 merge되었을 때만 실행
     if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      tag_created: ${{ steps.check_tag.outputs.exists == 'false' }}
     
     steps:
       - name: Checkout
@@ -56,3 +64,14 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
           echo "⚠️ Tag $VERSION already exists, skipping..."
+  
+  # 태그 생성 완료 후 Release 워크플로우 자동 실행
+  trigger-release:
+    name: Trigger Release Creation
+    needs: auto-tag
+    if: needs.auto-tag.outputs.tag_created == 'true'
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+    with:
+      version: ${{ needs.auto-tag.outputs.version }}

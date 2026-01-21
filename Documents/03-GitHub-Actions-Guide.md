@@ -69,27 +69,68 @@ AsyncViewModel 프로젝트는 다음과 같은 자동화를 제공합니다:
 - PR: 약 10-15분
 - Merge 후: 스킵됨 (0분) ⚡️
 
-### 2. Release Workflow (`.github/workflows/release.yml`)
+### 2. Auto Tag on Merge (`.github/workflows/auto-tag.yml`) ⭐️ 자동화
 
 **트리거 조건:**
-- 버전 태그 푸시: `1.0.0`, `1.0.0-beta.1`, `1.0.0-alpha.1`
+- `release/*` 브랜치가 `main`에 merge되었을 때
+
+**실행 흐름:**
+```
+release/1.0.0 브랜치 → main PR → Merge 완료
+    ↓
+1. 브랜치 이름에서 버전 추출 (release/1.0.0 → 1.0.0)
+2. 태그 중복 체크
+3. 태그 생성 및 push (예: 1.0.0)
+    ↓
+4. Release 워크플로우 자동 트리거 ⚡️
+    ↓
+완전 자동 Release 생성!
+```
+
+**장점:**
+- ✅ 수동 태그 생성 불필요
+- ✅ 태그 → Release 자동 생성
+- ✅ 일관된 릴리스 프로세스
+- ✅ 실수 방지 (버전 불일치 등)
+
+**사용 예시:**
+```bash
+# 1. release 브랜치 생성
+git checkout -b release/1.0.0
+
+# 2. 버전 업데이트 및 커밋
+# (Package.swift, Info.plist 등)
+git commit -am "chore: [릴리스] v1.0.0 버전 업데이트"
+
+# 3. PR 생성 및 merge
+gh pr create --title "Release v1.0.0" --base main
+gh pr merge --squash
+
+# 4. 자동으로 태그 생성 및 Release 생성됨! 🎉
+```
+
+### 3. Release Workflow (`.github/workflows/release.yml`)
+
+**트리거 조건:**
+1. **자동**: Auto Tag 워크플로우에서 호출 (권장)
+2. **수동**: `*.*.*` 형식의 태그 직접 push
 
 **실행 단계:**
 ```yaml
 1. 소스 체크아웃
-2. Xcode 16.1 선택
-3. 버전 태그에서 버전 추출
-4. AsyncViewModel 패키지 빌드 및 테스트
-5. AsyncViewModelMacros 패키지 빌드 및 테스트
-6. 이전 태그부터의 변경 내역 생성
-7. GitHub Release 생성
+2. macOS 15 환경 준비
+3. 버전 추출 (workflow_call 또는 tag에서)
+4. AsyncViewModel 패키지 빌드 (release 모드)
+5. 전체 테스트 실행 (병렬)
+6. 패키지 검증
+7. Changelog 자동 생성 (이전 태그부터의 커밋 로그)
+8. GitHub Release 생성
    - 설치 가이드 포함
    - 문서 링크 포함
    - 변경 내역 포함
-   - alpha/beta 태그는 prerelease로 표시
 ```
 
-**릴리스 예제:**
+**수동 릴리스 (필요시):**
 ```bash
 # 정식 릴리스
 git tag 1.0.0
@@ -98,13 +139,11 @@ git push origin 1.0.0
 # Beta 릴리스
 git tag 1.0.0-beta.1
 git push origin 1.0.0-beta.1
-
-# Alpha 릴리스
-git tag 1.0.0-alpha.1
-git push origin 1.0.0-alpha.1
 ```
 
-### 3. Documentation Workflow (`.github/workflows/documentation.yml`)
+> 💡 **권장**: release/* 브랜치를 사용한 자동 릴리스 (Auto Tag on Merge)
+
+### 4. Documentation Workflow (`.github/workflows/documentation.yml`)
 
 **트리거 조건:**
 - `main` 브랜치에 push (소스 파일 또는 문서 변경 시)
@@ -236,46 +275,78 @@ README에 다음 뱃지가 추가되었습니다:
 
 ## 릴리스 프로세스
 
-### 1. 버전 결정
+### 자동 릴리스 (권장) ⭐️
+
+완전 자동화된 릴리스 프로세스를 사용하세요!
+
+#### 1. 버전 결정
 
 Semantic Versioning을 따릅니다:
 - **Major (1.0.0)**: Breaking Changes
 - **Minor (1.1.0)**: 새로운 기능 (하위 호환)
 - **Patch (1.0.1)**: 버그 수정
 
-### 2. 변경 사항 정리
-
-릴리스 전에 변경 사항을 정리합니다:
+#### 2. Release 브랜치 생성
 
 ```bash
-# 이전 태그부터의 변경 사항 확인
-git log v1.0.0..HEAD --oneline
+# release/버전 형식으로 브랜치 생성
+git checkout -b release/1.1.0
 ```
 
-### 3. 태그 생성 및 푸시
+#### 3. 버전 정보 업데이트
+
+필요한 파일들의 버전 정보를 업데이트:
+- `Package.swift`
+- `README.md`
+- 버전 관련 문서
 
 ```bash
-# 태그 생성
+git commit -am "chore: [릴리스] v1.1.0 버전 업데이트"
+git push origin release/1.1.0
+```
+
+#### 4. Pull Request 생성 및 Merge
+
+```bash
+# PR 생성
+gh pr create --title "Release v1.1.0" --base main --body "Release v1.1.0"
+
+# CI 통과 확인 후 merge
+gh pr merge --squash
+```
+
+#### 5. 자동 실행 완료! 🎉
+
+Merge 즉시 자동으로:
+1. ✅ 태그 생성 (`1.1.0`)
+2. ✅ 패키지 빌드 및 테스트
+3. ✅ Changelog 자동 생성
+4. ✅ GitHub Release 생성 (설치 가이드 포함)
+
+모든 과정이 **약 10-15분** 안에 자동으로 완료됩니다!
+
+#### 6. 릴리스 확인
+
+[GitHub Releases](https://github.com/jimmy/AsyncViewModel/releases) 페이지에서 생성된 릴리스 확인:
+- 버전 태그 확인
+- Changelog 검토
+- 필요시 Release Notes 편집
+
+---
+
+### 수동 릴리스 (선택사항)
+
+특별한 경우에만 수동으로 태그를 생성:
+
+```bash
+# 태그 생성 및 push
 git tag -a 1.1.0 -m "Release 1.1.0"
-
-# 태그 푸시
 git push origin 1.1.0
+
+# Release Workflow가 자동 실행됨
 ```
 
-### 4. 자동 릴리스 생성
-
-태그를 푸시하면 Release Workflow가 자동으로:
-1. 패키지 빌드 및 테스트
-2. 변경 내역 생성
-3. GitHub Release 생성
-4. 설치 가이드 포함
-
-### 5. 릴리스 확인
-
-GitHub Releases 페이지에서 생성된 릴리스를 확인합니다:
-- 변경 내역이 정확한지 확인
-- 설치 가이드가 올바른지 확인
-- 필요시 수동으로 Release Notes 편집
+> ⚠️ **주의**: release/* 브랜치 없이 수동으로 태그만 생성하면 버전 불일치가 발생할 수 있습니다.
 
 ## 보안 정책
 

@@ -1,9 +1,24 @@
 name: Release
 
+# 트리거 조건:
+# 1. 태그 push: *.*.*  형식의 태그가 생성되면 자동 실행 (수동 태그)
+# 2. workflow_call: Auto Tag 워크플로우에서 자동 호출
+#
+# 실행 내용:
+# - AsyncViewModel 패키지 빌드 및 테스트
+# - Changelog 자동 생성
+# - GitHub Release 생성 (설치 가이드 포함)
+
 on:
   push:
     tags:
       - '*.*.*'
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -35,7 +50,12 @@ jobs:
       
       - name: Extract Version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_call" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
       
       - name: Generate Changelog
         id: changelog
