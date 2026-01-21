@@ -21,13 +21,13 @@ public enum AsyncViewModelMacroError: CustomStringConvertible, Error {
     public var description: String {
         switch self {
         case .onlyApplicableToClass:
-            return "@AsyncViewModel can only be applied to a class"
+            "@AsyncViewModel can only be applied to a class"
         case .missingObservableObjectConformance:
-            return "@AsyncViewModel requires the class to conform to ObservableObject"
+            "@AsyncViewModel requires the class to conform to ObservableObject"
         case .missingStateProperty:
-            return "@AsyncViewModel requires a '@Published var state: State' property"
+            "@AsyncViewModel requires a '@Published var state: State' property"
         case let .missingRequiredTypes(types):
-            return "@AsyncViewModel requires the following types to be defined: \(types.joined(separator: ", "))"
+            "@AsyncViewModel requires the following types to be defined: \(types.joined(separator: ", "))"
         }
     }
 }
@@ -133,13 +133,12 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
             let loggerMode = extractLoggerMode(from: node)
             let loggingOptions = extractLoggingOptions(from: node)
 
-            let code: String
-            if let options = loggingOptions {
+            let code = if let options = loggingOptions {
                 // 커스텀 옵션이 설정됨
-                code = "public let loggingConfig: ViewModelLoggingConfig = ViewModelLoggingConfig(mode: \(loggingMode), loggerMode: \(loggerMode), customOptions: \(options))"
+                "public let loggingConfig: ViewModelLoggingConfig = ViewModelLoggingConfig(mode: \(loggingMode), loggerMode: \(loggerMode), customOptions: \(options))"
             } else {
                 // 전역 설정 사용
-                code = "public let loggingConfig: ViewModelLoggingConfig = ViewModelLoggingConfig(mode: \(loggingMode), loggerMode: \(loggerMode), customOptions: nil)"
+                "public let loggingConfig: ViewModelLoggingConfig = ViewModelLoggingConfig(mode: \(loggingMode), loggerMode: \(loggerMode), customOptions: nil)"
             }
             members.append(DeclSyntax(stringLiteral: code))
         }
@@ -168,8 +167,7 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
         if let attributedNode = member.asProtocol(WithAttributesSyntax.self) {
             let hasMainActor = attributedNode.attributes.contains { attribute in
                 if case let .attribute(attr) = attribute,
-                   let identifier = attr.attributeName.as(IdentifierTypeSyntax.self)
-                {
+                   let identifier = attr.attributeName.as(IdentifierTypeSyntax.self) {
                     return identifier.name.text == "MainActor"
                 }
                 return false
@@ -183,7 +181,7 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
 
         // @MainActor 어트리뷰트 생성
         let mainActorAttribute = AttributeSyntax(
-            atSignToken: .atSignToken(),
+            atSign: .atSignToken(),
             attributeName: IdentifierTypeSyntax(name: .identifier("MainActor"))
         )
 
@@ -311,9 +309,8 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
             // .custom(SomeLogger()) 케이스
             if let functionCall = expression.as(FunctionCallExprSyntax.self) {
                 if let memberAccess = functionCall.calledExpression.as(MemberAccessExprSyntax.self),
-                   memberAccess.declName.baseName.text == "custom"
-                {
-                    let argumentsText = functionCall.arguments.map { $0.expression.description }.joined(separator: ", ")
+                   memberAccess.declName.baseName.text == "custom" {
+                    let argumentsText = functionCall.arguments.map(\.expression.description).joined(separator: ", ")
                     loggerMode = ".custom(\(argumentsText))"
                 }
                 break
@@ -434,6 +431,6 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
 @main
 struct AsyncViewModelMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
-        AsyncViewModelMacroImpl.self,
+        AsyncViewModelMacroImpl.self
     ]
 }
