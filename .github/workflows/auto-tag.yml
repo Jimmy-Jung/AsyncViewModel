@@ -70,8 +70,20 @@ jobs:
     name: Trigger Release Creation
     needs: auto-tag
     if: needs.auto-tag.outputs.tag_created == 'true'
-    uses: ./.github/workflows/release.yml
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    with:
-      version: ${{ needs.auto-tag.outputs.version }}
+      actions: write
+    
+    steps:
+      - name: Trigger Release Workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.auto-tag.outputs.version }}"
+          gh workflow run release.yml \
+            --repo ${{ github.repository }} \
+            --ref main \
+            --field version="$VERSION"
+          echo "✅ Triggered release workflow for version $VERSION"
+          echo "🔗 Check workflow: https://github.com/${{ github.repository }}/actions/workflows/release.yml"

@@ -19,6 +19,12 @@ on:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -51,7 +57,7 @@ jobs:
       - name: Extract Version
         id: version
         run: |
-          if [ "${{ github.event_name }}" == "workflow_call" ]; then
+          if [ "${{ github.event_name }}" == "workflow_call" ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
           else
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
