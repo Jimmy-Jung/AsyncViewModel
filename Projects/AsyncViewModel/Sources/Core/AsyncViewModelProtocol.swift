@@ -350,13 +350,15 @@ extension AsyncViewModelProtocol {
     // MARK: - Logging Helpers
 
     private func logEffects(_ effects: [AsyncEffect<Action, CancelID>]) {
-        let effectDescriptions = effects.map { String(describing: $0) }
+        let effectInfos = effects.map { convertToEffectInfo($0) }
         let viewModelName = String(describing: Self.self)
         let config = AsyncViewModelConfiguration.shared
-        let logger = config.logger(for: loggingConfig.loggerMode)
+        let effectiveOptions = loggingConfig.options
+        var logger = config.logger(for: loggingConfig.loggerMode)
+        logger.options = effectiveOptions
 
         logger.logEffects(
-            effectDescriptions,
+            effectInfos,
             viewModel: viewModelName,
             file: #file,
             function: #function,
@@ -364,7 +366,7 @@ extension AsyncViewModelProtocol {
         )
 
         // Interceptor에 이벤트 전달
-        let event = LogEvent.effects(effectDescriptions)
+        let event = LogEvent.effects(effectInfos)
         config.dispatch(event, viewModel: viewModelName, file: #file, function: #function, line: #line)
 
         for effect in effects {
@@ -433,26 +435,15 @@ extension AsyncViewModelProtocol {
         }
 
         let config = AsyncViewModelConfiguration.shared
-        let logger = config.logger(for: loggingConfig.loggerMode)
+        var logger = config.logger(for: loggingConfig.loggerMode)
+        logger.options = effectiveOptions
         let viewModelName = String(describing: Self.self)
 
-        // LogFormat에 따라 Action 포맷팅
-        let actionDescription: String
-        switch effectiveOptions.actionFormat {
-        case .compact:
-            // compact: case 이름만 (중첩 타입 제거)
-            actionDescription = extractCaseName(from: action)
-        case .standard:
-            // standard: case 이름 + associated value (기본 설명)
-            actionDescription = String(describing: action)
-        case .detailed:
-            // detailed: 전체 경로 + PrettyPrint
-            let printer = PrettyPrinter(maxDepth: effectiveOptions.maxDepth)
-            actionDescription = printer.format(action)
-        }
+        // Action을 ActionInfo로 변환
+        let actionInfo = convertToActionInfo(action)
 
         logger.logAction(
-            actionDescription,
+            actionInfo,
             viewModel: viewModelName,
             file: file,
             function: function,
@@ -460,7 +451,7 @@ extension AsyncViewModelProtocol {
         )
 
         // Interceptor에 이벤트 전달
-        let event = LogEvent.action(actionDescription)
+        let event = LogEvent.action(actionInfo)
         config.dispatch(event, viewModel: viewModelName, file: file, function: function, line: line)
     }
 
@@ -472,30 +463,14 @@ extension AsyncViewModelProtocol {
         line: Int = #line
     ) {
         let config = AsyncViewModelConfiguration.shared
-        let logger = config.logger(for: loggingConfig.loggerMode)
         let effectiveOptions = loggingConfig.options
+        var logger = config.logger(for: loggingConfig.loggerMode)
+        logger.options = effectiveOptions
         let viewModelName = String(describing: Self.self)
 
-        // LogFormat에 따라 PrettyPrint 사용 여부 결정
-        let usePrettyPrint: Bool
-        switch effectiveOptions.stateFormat {
-        case .compact:
-            usePrettyPrint = false
-        case .standard, .detailed:
-            usePrettyPrint = true
-        }
-
-        // StateSnapshot 생성
-        let oldSnapshot = StateSnapshot(
-            from: oldState,
-            maxDepth: effectiveOptions.maxDepth,
-            usePrettyPrint: usePrettyPrint
-        )
-        let newSnapshot = StateSnapshot(
-            from: newState,
-            maxDepth: effectiveOptions.maxDepth,
-            usePrettyPrint: usePrettyPrint
-        )
+        // StateSnapshot 생성 (원본 데이터 전체 보관, 포맷터에서 깊이 제한 적용)
+        let oldSnapshot = StateSnapshot(from: oldState)
+        let newSnapshot = StateSnapshot(from: newState)
         let stateChange = StateChangeInfo(oldState: oldSnapshot, newState: newSnapshot)
 
         logger.logStateChange(
@@ -586,22 +561,16 @@ extension AsyncViewModelProtocol {
         }
 
         let config = AsyncViewModelConfiguration.shared
-        let logger = config.logger(for: loggingConfig.loggerMode)
         let effectiveOptions = loggingConfig.options
+        var logger = config.logger(for: loggingConfig.loggerMode)
+        logger.options = effectiveOptions
         let viewModelName = String(describing: Self.self)
 
-        // LogFormat에 따라 Effect 포맷팅
-        let effectDescription: String
-        switch effectiveOptions.effectFormat {
-        case .compact:
-            effectDescription = String(describing: effect)
-        case .standard, .detailed:
-            let printer = PrettyPrinter(maxDepth: effectiveOptions.maxDepth)
-            effectDescription = printer.format(effect)
-        }
+        // Effect를 EffectInfo로 변환
+        let effectInfo = convertToEffectInfo(effect)
 
         logger.logEffect(
-            effectDescription,
+            effectInfo,
             viewModel: viewModelName,
             file: file,
             function: function,
@@ -609,7 +578,7 @@ extension AsyncViewModelProtocol {
         )
 
         // Interceptor에 이벤트 전달
-        let event = LogEvent.effect(effectDescription)
+        let event = LogEvent.effect(effectInfo)
         config.dispatch(event, viewModel: viewModelName, file: file, function: function, line: line)
 
         effectObserver?(effect)
@@ -631,12 +600,31 @@ extension AsyncViewModelProtocol {
         }
 
         let config = AsyncViewModelConfiguration.shared
-        let logger = config.logger(for: loggingConfig.loggerMode)
+        let effectiveOptions = loggingConfig.options
+        var logger = config.logger(for: loggingConfig.loggerMode)
+        logger.options = effectiveOptions
         let viewModelName = String(describing: Self.self)
 
-        logger.logPerformance(
+        // PerformanceInfo 생성
+        let operationType = PerformanceThreshold.infer(from: operation)
+        let threshold: TimeInterval
+        if let performanceThreshold = effectiveOptions.performanceThreshold {
+            threshold = performanceThreshold.threshold
+        } else {
+            threshold = operationType.recommendedThreshold
+        }
+        let exceededThreshold = duration >= threshold
+
+        let performanceInfo = PerformanceInfo(
             operation: operation,
+            operationType: operationType,
             duration: duration,
+            threshold: threshold,
+            exceededThreshold: exceededThreshold
+        )
+
+        logger.logPerformance(
+            performanceInfo,
             viewModel: viewModelName,
             file: file,
             function: function,
@@ -644,7 +632,7 @@ extension AsyncViewModelProtocol {
         )
 
         // Interceptor에 이벤트 전달
-        let event = LogEvent.performance(operation: operation, duration: duration)
+        let event = LogEvent.performance(performanceInfo)
         config.dispatch(event, viewModel: viewModelName, file: file, function: function, line: line)
 
         performanceObserver?(operation, duration)
@@ -664,7 +652,9 @@ extension AsyncViewModelProtocol {
         }
 
         let config = AsyncViewModelConfiguration.shared
-        let logger = config.logger(for: loggingConfig.loggerMode)
+        let effectiveOptions = loggingConfig.options
+        var logger = config.logger(for: loggingConfig.loggerMode)
+        logger.options = effectiveOptions
         let viewModelName = String(describing: Self.self)
 
         logger.logError(
@@ -693,33 +683,37 @@ extension AsyncViewModelProtocol {
             let config = AsyncViewModelConfiguration.shared
             let logger = config.logger
 
+            let message: String
             if taskCount > 0 {
-                let message = "🔄 deinit - Cancelling \(taskCount) active task(s)"
-                logger.logAction(
-                    message,
-                    viewModel: viewModelName,
-                    file: #file,
-                    function: "deinit",
-                    line: #line
-                )
-
-                // Interceptor에 이벤트 전달
-                let event = LogEvent.action(message)
-                config.dispatch(event, viewModel: viewModelName, file: #file, function: "deinit", line: #line)
+                message = "deinit - Cancelling \(taskCount) active task(s)"
             } else {
-                let message = "✅ deinit - No active tasks"
-                logger.logAction(
-                    message,
-                    viewModel: viewModelName,
-                    file: #file,
-                    function: "deinit",
-                    line: #line
-                )
-
-                // Interceptor에 이벤트 전달
-                let event = LogEvent.action(message)
-                config.dispatch(event, viewModel: viewModelName, file: #file, function: "deinit", line: #line)
+                message = "deinit - No active tasks"
             }
+
+            // ActionInfo 생성 (deinit은 특수 케이스)
+            let actionInfo = ActionInfo(
+                caseName: "deinit",
+                associatedValues: [
+                    ValueProperty(
+                        name: "taskCount",
+                        value: String(taskCount),
+                        typeName: "Int"
+                    ),
+                ],
+                fullDescription: message
+            )
+
+            logger.logAction(
+                actionInfo,
+                viewModel: viewModelName,
+                file: #file,
+                function: "deinit",
+                line: #line
+            )
+
+            // Interceptor에 이벤트 전달
+            let event = LogEvent.action(actionInfo)
+            config.dispatch(event, viewModel: viewModelName, file: #file, function: "deinit", line: #line)
         }
     }
 
@@ -732,12 +726,167 @@ extension AsyncViewModelProtocol {
     private func extractCaseName(from action: Action) -> String {
         let description = String(describing: action)
 
-        // "ModuleName.EnumName.caseName(...)" -> "caseName"
-        // "caseName(param: value)" -> "caseName"
-        let components = description.components(separatedBy: ".")
-        let lastComponent = components.last ?? description
+        // 먼저 첫 번째 '('를 찾아 associated value 부분을 제거
+        // 이렇게 해야 associated value 내부의 '.'에 영향받지 않음
+        let baseDescription: String
+        if let firstParenIndex = description.firstIndex(of: "(") {
+            baseDescription = String(description[..<firstParenIndex])
+        } else {
+            baseDescription = description
+        }
 
-        // associated value가 있는 경우 제거
-        return lastComponent.components(separatedBy: "(").first ?? lastComponent
+        // 그 다음 마지막 '.'를 찾아 case name만 추출
+        // "ModuleName.EnumName.caseName" -> "caseName"
+        if let lastDotIndex = baseDescription.lastIndex(of: ".") {
+            return String(baseDescription[baseDescription.index(after: lastDotIndex)...])
+        }
+
+        return baseDescription
+    }
+
+    /// Action을 ActionInfo로 변환
+    private func convertToActionInfo(_ action: Action) -> ActionInfo {
+        let caseName = extractCaseName(from: action)
+        let fullDescription = String(describing: action)
+        let mirror = Mirror(reflecting: action)
+        let printer = PrettyPrinter(maxDepth: nil)
+
+        var associatedValues: [ValueProperty] = []
+
+        // enum의 associated values 추출
+        for child in mirror.children {
+            let name = child.label?.starts(with: ".") == true
+                ? ""
+                : (child.label ?? "")
+            let value = printer.format(child.value)
+            let typeName = String(describing: type(of: child.value))
+
+            // 중첩 프로퍼티 추출
+            let childMirror = Mirror(reflecting: child.value)
+            let children: [ValueProperty]
+            switch childMirror.displayStyle {
+            case .struct, .class:
+                children = extractValueProperties(from: childMirror, printer: printer)
+            default:
+                children = []
+            }
+
+            associatedValues.append(ValueProperty(
+                name: name,
+                value: value,
+                typeName: typeName,
+                children: children,
+                isNil: isOptionalNil(child.value)
+            ))
+        }
+
+        return ActionInfo(
+            caseName: caseName,
+            associatedValues: associatedValues,
+            fullDescription: fullDescription
+        )
+    }
+
+    /// Mirror에서 ValueProperty 배열 추출
+    private func extractValueProperties(
+        from mirror: Mirror,
+        printer: PrettyPrinter
+    ) -> [ValueProperty] {
+        return mirror.children.compactMap { child -> ValueProperty? in
+            guard let label = child.label else { return nil }
+
+            let childMirror = Mirror(reflecting: child.value)
+            let typeName = String(describing: type(of: child.value))
+            let value = printer.format(child.value)
+
+            let children: [ValueProperty]
+            switch childMirror.displayStyle {
+            case .struct, .class:
+                children = extractValueProperties(from: childMirror, printer: printer)
+            default:
+                children = []
+            }
+
+            return ValueProperty(
+                name: label,
+                value: value,
+                typeName: typeName,
+                children: children,
+                isNil: isOptionalNil(child.value)
+            )
+        }
+    }
+
+    /// Optional 값이 nil인지 확인
+    private func isOptionalNil(_ value: Any) -> Bool {
+        let mirror = Mirror(reflecting: value)
+        guard mirror.displayStyle == .optional else { return false }
+        return mirror.children.isEmpty
+    }
+
+    /// AsyncEffect를 EffectInfo로 변환
+    private func convertToEffectInfo(_ effect: AsyncEffect<Action, CancelID>) -> EffectInfo {
+        let description = String(describing: effect)
+
+        switch effect {
+        case .none:
+            return EffectInfo(
+                effectType: .none,
+                id: nil,
+                relatedAction: nil,
+                description: description
+            )
+
+        case let .action(action):
+            return EffectInfo(
+                effectType: .action,
+                id: nil,
+                relatedAction: convertToActionInfo(action),
+                description: description
+            )
+
+        case let .run(id, _):
+            let idString = id.map { String(describing: $0) }
+            return EffectInfo(
+                effectType: .run,
+                id: idString,
+                relatedAction: nil,
+                description: description
+            )
+
+        case let .cancel(id):
+            return EffectInfo(
+                effectType: .cancel,
+                id: String(describing: id),
+                relatedAction: nil,
+                description: description
+            )
+
+        case let .concurrent(effects):
+            return EffectInfo(
+                effectType: .concurrent,
+                id: nil,
+                relatedAction: nil,
+                description: "concurrent(\(effects.count) effects)"
+            )
+
+        case let .sleepThen(id, duration, action):
+            let idString = id.map { String(describing: $0) }
+            return EffectInfo(
+                effectType: .sleepThen,
+                id: idString,
+                relatedAction: convertToActionInfo(action),
+                description: "sleepThen(duration: \(duration), action: \(extractCaseName(from: action)))"
+            )
+
+        case let .timer(id, interval, action):
+            let idString = id.map { String(describing: $0) }
+            return EffectInfo(
+                effectType: .timer,
+                id: idString,
+                relatedAction: convertToActionInfo(action),
+                description: "timer(interval: \(interval), action: \(extractCaseName(from: action)))"
+            )
+        }
     }
 }
