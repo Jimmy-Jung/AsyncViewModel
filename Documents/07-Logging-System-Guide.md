@@ -661,6 +661,86 @@ AsyncViewModelConfiguration.shared.setLogger(multiLogger)
 
 ## 로그 포맷팅
 
+### FormatterConfiguration
+
+로그 포맷터의 동작을 커스터마이징할 수 있는 설정입니다.
+
+```swift
+public struct FormatterConfiguration: Sendable {
+    public var maxProperties: Int = 3
+    public var maxValueLength: Int = 50
+    public var standardMaxLines: Int = 10
+    public var standardMaxDepth: Int = 3
+    public var performanceDecimalPlaces: Int = 3
+    public var stateChangeArrow: String = "→"
+    public var indentString: String = "  "
+    public var unwrapOptional: Bool = true
+    
+    // Git diff 스타일 아이콘 (v1.3.0+)
+    public var changedPropertyIcon: String = "🟡"  // 변경점
+    public var oldValueIcon: String = "🔴"          // 이전 값
+    public var newValueIcon: String = "🟢"          // 새로운 값
+}
+```
+
+**커스터마이징 예시:**
+
+```swift
+// 커스텀 포맷터 설정
+let config = FormatterConfiguration(
+    maxValueLength: 100,
+    stateChangeArrow: "->",
+    indentString: "    ",
+    changedPropertyIcon: "•",
+    oldValueIcon: "-",
+    newValueIcon: "+"
+)
+
+let formatter = DefaultLogFormatter(configuration: config)
+
+// 커스텀 포맷터로 로거 생성
+var logger = OSLogViewModelLogger(subsystem: "com.myapp")
+logger.formatter = formatter
+AsyncViewModelConfiguration.shared.setLogger(logger)
+```
+
+**아이콘 커스터마이징 (v1.3.0+):**
+
+```swift
+// Git diff 스타일 (기본값)
+FormatterConfiguration(
+    changedPropertyIcon: "🟡",  // 노란색: 변경점
+    oldValueIcon: "🔴",          // 빨간색: 제거/이전
+    newValueIcon: "🟢"           // 초록색: 추가/새로운
+)
+
+// 텍스트 스타일
+FormatterConfiguration(
+    changedPropertyIcon: "◦",
+    oldValueIcon: "−",
+    newValueIcon: "+"
+)
+
+// 화살표 스타일
+FormatterConfiguration(
+    changedPropertyIcon: "▸",
+    oldValueIcon: "◁",
+    newValueIcon: "▷"
+)
+```
+
+**출력 예시:**
+
+```
+State changed (2 properties):
+  🟡 username:
+    🔴 OLD: "john"
+    🟢 NEW: "jimmy"
+  🟡 age:
+    🔴 OLD: 20
+    🟢 NEW: 25
+```
+
 ### ValueSnapshot
 
 타입 안전한 값 스냅샷을 위한 모델입니다.

@@ -45,13 +45,19 @@ public struct FormatterConfiguration: Sendable {
     /// Optional 래핑 제거 여부 (기본값: true)
     public var unwrapOptional: Bool
 
-    /// 변경된 프로퍼티 아이콘 (기본값: "◦")
+    /// 변경된 프로퍼티 아이콘 (기본값: "🟡")
+    ///
+    /// Git diff 스타일: 노란색은 변경점을 중립적으로 표시
     public var changedPropertyIcon: String
 
-    /// OLD 값 아이콘 (기본값: "⊖")
+    /// 이전 값 아이콘 (기본값: "🔴")
+    ///
+    /// Git diff 스타일: 빨간색은 제거되거나 이전 상태를 의미
     public var oldValueIcon: String
 
-    /// NEW 값 아이콘 (기본값: "⊕")
+    /// 새로운 값 아이콘 (기본값: "🟢")
+    ///
+    /// Git diff 스타일: 초록색은 추가되거나 새로운 상태를 의미
     public var newValueIcon: String
 
     /// 기본 설정
@@ -66,9 +72,9 @@ public struct FormatterConfiguration: Sendable {
         stateChangeArrow: String = "→",
         indentString: String = "  ",
         unwrapOptional: Bool = true,
-        changedPropertyIcon: String = "🔘",
-        oldValueIcon: String = "⛔️",
-        newValueIcon: String = "🔵"
+        changedPropertyIcon: String = "🟡",
+        oldValueIcon: String = "🔴",
+        newValueIcon: String = "🟢"
     ) {
         self.maxProperties = maxProperties
         self.maxValueLength = maxValueLength
@@ -140,8 +146,7 @@ public struct DefaultLogFormatter: LogFormatter {
             // associated value가 1개이고 라벨이 caseName과 동일하면 라벨 생략
             if action.associatedValues.count == 1,
                let av = action.associatedValues.first,
-               av.name == action.caseName
-            {
+               av.name == action.caseName {
                 let truncatedValue = standardTruncateValue(av.value)
                 let formattedValue = indentMultilineValue(truncatedValue, indent: indent)
                 return "\(action.caseName): \(formattedValue)"
@@ -171,8 +176,7 @@ public struct DefaultLogFormatter: LogFormatter {
             // associated value가 1개이고 라벨이 caseName과 동일하면 라벨 생략
             if action.associatedValues.count == 1,
                let av = action.associatedValues.first,
-               av.name == action.caseName
-            {
+               av.name == action.caseName {
                 let formattedValue = indentMultilineValue(av.value, indent: indent)
                 return "\(action.caseName): \(formattedValue)"
             }
@@ -384,8 +388,7 @@ public struct DefaultLogFormatter: LogFormatter {
         var displayValue = property.value
         if configuration.unwrapOptional,
            displayValue.hasPrefix("Optional("),
-           displayValue.hasSuffix(")")
-        {
+           displayValue.hasSuffix(")") {
             displayValue = String(displayValue.dropFirst(9).dropLast(1))
         }
 
@@ -407,8 +410,7 @@ public struct DefaultLogFormatter: LogFormatter {
         // Optional 래핑 제거
         if configuration.unwrapOptional,
            displayValue.hasPrefix("Optional("),
-           displayValue.hasSuffix(")")
-        {
+           displayValue.hasSuffix(")") {
             displayValue = String(displayValue.dropFirst(9).dropLast(1))
         }
 

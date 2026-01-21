@@ -22,7 +22,7 @@ struct LogFormatterTests {
         let action = ActionInfo(
             caseName: "fetchData",
             associatedValues: [
-                ValueProperty(name: "id", value: "123", typeName: "Int"),
+                ValueProperty(name: "id", value: "123", typeName: "Int")
             ],
             fullDescription: "fetchData(id: 123)"
         )
@@ -36,7 +36,7 @@ struct LogFormatterTests {
         let action = ActionInfo(
             caseName: "fetchData",
             associatedValues: [
-                ValueProperty(name: "id", value: "123", typeName: "Int"),
+                ValueProperty(name: "id", value: "123", typeName: "Int")
             ],
             fullDescription: "fetchData(id: 123)"
         )
@@ -44,7 +44,7 @@ struct LogFormatterTests {
         let result = formatter.formatAction(action, format: .standard)
         let expected = """
         fetchData:
-          🔘 id: 123
+          🟡 id: 123
         """
         #expect(result == expected)
     }
@@ -54,7 +54,7 @@ struct LogFormatterTests {
         let action = ActionInfo(
             caseName: "fetchData",
             associatedValues: [
-                ValueProperty(name: "id", value: "123", typeName: "Int"),
+                ValueProperty(name: "id", value: "123", typeName: "Int")
             ],
             fullDescription: "fetchData(id: 123)"
         )
@@ -62,7 +62,7 @@ struct LogFormatterTests {
         let result = formatter.formatAction(action, format: .detailed)
         let expected = """
         fetchData:
-          🔘 id: 123
+          🟡 id: 123
         """
         #expect(result == expected)
     }
@@ -85,7 +85,7 @@ struct LogFormatterTests {
         let action = ActionInfo(
             caseName: "setCount",
             associatedValues: [
-                ValueProperty(name: "", value: "42", typeName: "Int"),
+                ValueProperty(name: "", value: "42", typeName: "Int")
             ],
             fullDescription: "setCount(42)"
         )
@@ -93,7 +93,7 @@ struct LogFormatterTests {
         let result = formatter.formatAction(action, format: .standard)
         let expected = """
         setCount:
-          🔘 42
+          🟡 42
         """
         #expect(result == expected)
     }
@@ -163,7 +163,7 @@ struct LogFormatterTests {
     func effectsCompactAndStandardFormat() {
         let effects = [
             EffectInfo(effectType: .run, id: "fetch1", relatedAction: nil, description: ""),
-            EffectInfo(effectType: .cancel, id: "fetch2", relatedAction: nil, description: ""),
+            EffectInfo(effectType: .cancel, id: "fetch2", relatedAction: nil, description: "")
         ]
 
         let compactResult = formatter.formatEffects(effects, format: .compact)
@@ -180,7 +180,7 @@ struct LogFormatterTests {
     func effectsDetailedFormat() {
         let effects = [
             EffectInfo(effectType: .run, id: "fetch1", relatedAction: nil, description: ""),
-            EffectInfo(effectType: .cancel, id: "fetch2", relatedAction: nil, description: ""),
+            EffectInfo(effectType: .cancel, id: "fetch2", relatedAction: nil, description: "")
         ]
 
         let result = formatter.formatEffects(effects, format: .detailed)
@@ -203,9 +203,12 @@ struct LogFormatterTests {
         let options = LoggingOptions()
 
         let result = formatter.formatPerformance(performance, options: options)
-        #expect(result != nil)
-        #expect(result!.contains("0.100s"))
-        #expect(result!.contains("Action processing"))
+        guard let result = result else {
+            Issue.record("Expected non-nil result")
+            return
+        }
+        #expect(result.contains("0.100s"))
+        #expect(result.contains("Action processing"))
     }
 
     @Test("Performance는 임계값 이하이고 showZeroPerformance가 false면 nil을 반환한다")
@@ -263,19 +266,19 @@ struct LogFormatterTests {
         let oldState = StateSnapshot(
             typeName: "State",
             properties: [
-                StateProperty(name: "count", value: "0", typeName: "Int"),
+                StateProperty(name: "count", value: "0", typeName: "Int")
             ]
         )
         let newState = StateSnapshot(
             typeName: "State",
             properties: [
-                StateProperty(name: "count", value: "1", typeName: "Int"),
+                StateProperty(name: "count", value: "1", typeName: "Int")
             ]
         )
         let stateChange = StateChangeInfo(oldState: oldState, newState: newState)
 
         let result = formatter.formatStateChange(stateChange, format: .compact)
-        #expect(result.contains("🔘 count"))
+        #expect(result.contains("🟡 count"))
         #expect(result.contains("0"))
         #expect(result.contains("→"))
         #expect(result.contains("1"))
@@ -286,7 +289,7 @@ struct LogFormatterTests {
         let state = StateSnapshot(
             typeName: "State",
             properties: [
-                StateProperty(name: "count", value: "0", typeName: "Int"),
+                StateProperty(name: "count", value: "0", typeName: "Int")
             ]
         )
         let stateChange = StateChangeInfo(oldState: state, newState: state)
@@ -339,7 +342,7 @@ struct FormatterConfigurationTests {
         let stateChange = StateChangeInfo(oldState: oldState, newState: newState)
 
         let result = formatter.formatStateChange(stateChange, format: .compact)
-        #expect(result.contains("    🔘 count"))
+        #expect(result.contains("    🟡 count"))
     }
 
     @Test("커스텀 성능 소수점 자릿수가 적용된다")
@@ -358,8 +361,11 @@ struct FormatterConfigurationTests {
         options.showZeroPerformance = true
 
         let result = formatter.formatPerformance(performance, options: options)
-        #expect(result != nil)
-        #expect(result!.contains("0.123457"))
+        guard let result = result else {
+            Issue.record("Expected non-nil result")
+            return
+        }
+        #expect(result.contains("0.123457"))
     }
 
     @Test("maxValueLength가 적용된다")
@@ -374,7 +380,7 @@ struct FormatterConfigurationTests {
                     name: "longValue",
                     value: "short",
                     typeName: "String"
-                ),
+                )
             ]
         )
         let newState = StateSnapshot(
@@ -384,7 +390,7 @@ struct FormatterConfigurationTests {
                     name: "longValue",
                     value: "This is a very long value\nthat spans multiple lines",
                     typeName: "String"
-                ),
+                )
             ]
         )
         let stateChange = StateChangeInfo(oldState: oldState, newState: newState)
@@ -402,13 +408,13 @@ struct FormatterConfigurationTests {
         let oldState = StateSnapshot(
             typeName: "State",
             properties: [
-                StateProperty(name: "text", value: "single", typeName: "String"),
+                StateProperty(name: "text", value: "single", typeName: "String")
             ]
         )
         let newState = StateSnapshot(
             typeName: "State",
             properties: [
-                StateProperty(name: "text", value: "Line 1\nLine 2\nLine 3", typeName: "String"),
+                StateProperty(name: "text", value: "Line 1\nLine 2\nLine 3", typeName: "String")
             ]
         )
         let stateChange = StateChangeInfo(oldState: oldState, newState: newState)
@@ -426,13 +432,13 @@ struct FormatterConfigurationTests {
         let oldState = StateSnapshot(
             typeName: "State",
             properties: [
-                StateProperty(name: "value", value: "Optional(test)", typeName: "String?"),
+                StateProperty(name: "value", value: "Optional(test)", typeName: "String?")
             ]
         )
         let newState = StateSnapshot(
             typeName: "State",
             properties: [
-                StateProperty(name: "value", value: "Optional(changed)", typeName: "String?"),
+                StateProperty(name: "value", value: "Optional(changed)", typeName: "String?")
             ]
         )
         let stateChange = StateChangeInfo(oldState: oldState, newState: newState)
@@ -465,7 +471,7 @@ struct FormatterConfigurationTests {
                     value: "nil",
                     typeName: "Company?",
                     isNil: true
-                ),
+                )
             ]
         )
         let newState = StateSnapshot(
@@ -475,7 +481,7 @@ struct FormatterConfigurationTests {
                     name: "company",
                     value: "Company {\n  \"name\": \"테크 주식회사\"\n}",
                     typeName: "Company"
-                ),
+                )
             ]
         )
         let stateChange = StateChangeInfo(oldState: oldState, newState: newState)
@@ -498,7 +504,7 @@ struct FormatterConfigurationTests {
                     value: "nil",
                     typeName: "String?",
                     isNil: true
-                ),
+                )
             ]
         )
         let newState = StateSnapshot(
@@ -508,7 +514,7 @@ struct FormatterConfigurationTests {
                     name: "name",
                     value: "\"This is a very long string that should be fully displayed\"",
                     typeName: "String"
-                ),
+                )
             ]
         )
         let stateChange = StateChangeInfo(oldState: oldState, newState: newState)
