@@ -9,6 +9,8 @@ AsyncViewModel 프로젝트의 GitHub Actions 및 CI/CD 설정에 대한 완전�
 - [설정 파일](#설정-파일)
 - [뱃지 설정](#뱃지-설정)
 - [릴리스 프로세스](#릴리스-프로세스)
+- [CI/CD 최적화](#cicd-최적화)
+- [문제 해결](#문제-해결)
 
 ## 개요
 
@@ -25,49 +27,47 @@ AsyncViewModel 프로젝트는 다음과 같은 자동화를 제공합니다:
 
 ### 1. CI Workflow (`.github/workflows/ci.yml`)
 
-**트리거 조건:**
-- `main`, `develop`, `feature/*` 브랜치에 push
-- `main`, `develop` 브랜치로의 Pull Request
-- 수동 실행 (workflow_dispatch)
+**트리거 조건 (최적화됨):**
+1. **Pull Request**: `main`, `develop` 브랜치로의 PR 생성/업데이트 시 (주요 검증)
+2. **수동 실행**: workflow_dispatch를 통한 수동 트리거
+3. **직접 Push**: `main`, `develop` 브랜치로의 직접 push (hotfix 등)
+   - ✅ **중복 방지**: PR merge로 인한 push는 자동으로 스킵됨 (이미 PR에서 검증됨)
 
-**실행 Job:**
+> **최적화 포인트**: PR에서 이미 테스트를 통과한 코드는 main merge 후 재실행하지 않아 CI 시간과 비용을 절약합니다.
 
-#### Job 1: AsyncViewModel 패키지 빌드 및 테스트
+**실행 Job (모든 Job에 중복 방지 조건 적용):**
+
+#### Job 1: 통합 빌드 및 테스트 (Core + Macros)
 ```yaml
-- Xcode 16.1 선택
+- macOS 15 러너 사용
 - AsyncViewModel 패키지 릴리스 빌드
-- 테스트 실행 (코드 커버리지 활성화)
+- 테스트 실행 (코드 커버리지 활성화, 병렬 실행)
 - Codecov에 커버리지 리포트 업로드
 ```
 
-#### Job 2: AsyncViewModelMacros 패키지 빌드 및 테스트
+#### Job 2: 패키지 검증
 ```yaml
-- Xcode 16.1 선택
-- AsyncViewModelMacros 패키지 릴리스 빌드
-- 테스트 실행 (코드 커버리지 활성화)
-- Codecov에 커버리지 리포트 업로드
-```
-
-#### Job 3: 패키지 검증
-```yaml
-- 두 패키지의 Package.swift 검증
+- Package.swift 구조 검증
 - 의존성 트리 확인
 ```
 
-#### Job 4: SwiftLint
+#### Job 3: 코드 스타일 (SwiftLint)
 ```yaml
 - SwiftLint 설치 (없는 경우)
-- 코드 스타일 검사 실행
+- 코드 스타일 검사 실행 (--strict 모드)
 ```
 
-#### Job 5: Example 프로젝트 빌드
+#### Job 4: Example 프로젝트 빌드 (Tuist)
 ```yaml
 - Tuist 설치
+- 의존성 설치
 - Xcode 프로젝트 생성
-- Example 앱 빌드
+- Example 앱 빌드 (iOS 16 Pro 시뮬레이터)
 ```
 
-**예상 실행 시간:** 약 10-15분
+**예상 실행 시간:** 
+- PR: 약 10-15분
+- Merge 후: 스킵됨 (0분) ⚡️
 
 ### 2. Release Workflow (`.github/workflows/release.yml`)
 
@@ -323,6 +323,56 @@ gh label create "priority: high" --color "ff6b6b" --description "High priority i
 ```
 
 또는 GitHub 웹 인터페이스에서 수동으로 생성할 수 있습니다.
+
+## CI/CD 최적화
+
+### 중복 실행 방지
+
+AsyncViewModel 프로젝트는 CI 비용과 시간을 절약하기 위해 다음과 같이 최적화되었습니다:
+
+**문제점:**
+- PR에서 이미 빌드/테스트를 실행했는데, main 브랜치로 merge 후 다시 실행됨
+- 불필요한 중복 실행으로 인한 시간 낭비 (약 10-15분)
+- GitHub Actions 무료 플랜의 분당 제한 소모
+
+**해결 방법:**
+모든 CI job에 다음 조건 추가:
+```yaml
+if: |
+  github.event_name == 'pull_request' || 
+  github.event_name == 'workflow_dispatch' ||
+  (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
+```
+
+**동작 방식:**
+1. ✅ **PR 생성/업데이트**: 전체 CI 실행 (주요 검증)
+2. ✅ **수동 실행**: workflow_dispatch로 언제든지 실행 가능
+3. ✅ **Hotfix push**: main/develop에 직접 push 시 CI 실행
+4. ⏭️ **PR merge**: "Merge pull request" 메시지를 감지하여 자동 스킵
+
+**효과:**
+- ⚡️ PR merge 후 CI 실행 시간 0분 (완전 스킵)
+- 💰 GitHub Actions 분당 제한 절약
+- 🎯 PR에서만 집중적으로 검증
+
+### 추가 최적화 팁
+
+1. **Concurrency 설정**: 같은 브랜치의 새 push가 있으면 이전 실행 취소
+   ```yaml
+   concurrency:
+     group: ${{ github.workflow }}-${{ github.ref }}
+     cancel-in-progress: true
+   ```
+
+2. **병렬 테스트**: `swift test --parallel`로 테스트 속도 향상
+
+3. **캐싱**: 향후 Swift 패키지 의존성 캐싱 추가 가능
+   ```yaml
+   - uses: actions/cache@v4
+     with:
+       path: .build
+       key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+   ```
 
 ## 문제 해결
 

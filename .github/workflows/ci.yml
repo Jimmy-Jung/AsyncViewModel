@@ -1,11 +1,17 @@
 name: CI
 
+# 워크플로우 실행 조건:
+# 1. PR 생성/업데이트 시: 항상 전체 CI 실행 (주요 검증)
+# 2. 수동 실행 (workflow_dispatch): 필요 시 수동 트리거
+# 3. main/develop 직접 push: hotfix 등 직접 커밋만 실행 (PR merge 제외)
+#
+# ✅ 최적화: PR에서 이미 검증된 코드는 merge 후 재실행하지 않음
 on:
-  push:
-    branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
+  push:
+    branches: [ main, develop ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +22,11 @@ jobs:
   build-and-test:
     name: Build and Test AsyncViewModel
     runs-on: macos-15
+    # PR에서는 항상 실행, push는 PR merge가 아닌 경우만 실행
+    if: |
+      github.event_name == 'pull_request' || 
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     
     steps:
       - name: Checkout
@@ -49,6 +60,10 @@ jobs:
   validate-package:
     name: Validate Swift Package
     runs-on: macos-15
+    if: |
+      github.event_name == 'pull_request' || 
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     
     steps:
       - name: Checkout
@@ -69,6 +84,10 @@ jobs:
   lint:
     name: SwiftLint
     runs-on: macos-15
+    if: |
+      github.event_name == 'pull_request' || 
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     
     steps:
       - name: Checkout
@@ -88,6 +107,10 @@ jobs:
   build-example:
     name: Build Example Project
     runs-on: macos-15
+    if: |
+      github.event_name == 'pull_request' || 
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     
     steps:
       - name: Checkout
