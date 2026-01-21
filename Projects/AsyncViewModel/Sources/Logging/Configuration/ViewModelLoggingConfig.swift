@@ -18,118 +18,6 @@ public enum LogCategory: String, Sendable, Codable, CaseIterable {
     case error
 }
 
-// MARK: - ViewModelLoggingMode
-
-/// ViewModel별 로깅 모드
-///
-/// @AsyncViewModel 매크로의 logging 파라미터로 사용됩니다.
-/// 컴파일 타임에 설정되어 런타임 성능 오버헤드가 없습니다.
-///
-/// ## 사용 예시
-///
-/// ```swift
-/// // 기본 사용 (shared logger)
-/// @AsyncViewModel(logging: .enabled)
-/// final class MyViewModel: ObservableObject { ... }
-///
-/// // 커스텀 Logger 지정
-/// @AsyncViewModel(logging: .enabled(.custom(DebugLogger())))
-/// final class DebugViewModel: ObservableObject { ... }
-///
-/// // 로깅 비활성화
-/// @AsyncViewModel(logging: .disabled)
-/// final class SilentViewModel: ObservableObject { ... }
-/// ```
-public enum ViewModelLoggingMode: Sendable {
-    // MARK: - Logger
-
-    /// Logger 모드 (ViewModel별 설정용)
-    public enum Logger: Sendable {
-        /// 전역 shared Logger 사용 (기본값)
-        case shared
-
-        /// 해당 ViewModel에서만 사용할 커스텀 Logger
-        case custom(any ViewModelLogger)
-    }
-
-    // MARK: - Cases
-
-    /// 모든 로깅 활성화
-    case enabled(Logger)
-
-    /// 모든 로깅 비활성화
-    case disabled
-
-    /// 최소 로깅 (에러만)
-    case minimal(Logger)
-
-    /// 커스텀 카테고리 설정
-    case custom(
-        categories: Set<LogCategory>,
-        logger: Logger = .shared
-    )
-
-    // MARK: - Convenience Static Properties (하위 호환성)
-
-    /// 모든 로깅 활성화 (shared Logger 사용)
-    public static var enabled: ViewModelLoggingMode { .enabled(.shared) }
-
-    /// 최소 로깅 (에러만, shared Logger 사용)
-    public static var minimal: ViewModelLoggingMode { .minimal(.shared) }
-
-    // MARK: - Factory Methods
-
-    /// 특정 카테고리만 활성화
-    public static func only(_ categories: LogCategory...) -> ViewModelLoggingMode {
-        .custom(categories: Set(categories), logger: .shared)
-    }
-
-    /// 특정 카테고리만 활성화 (Logger 지정)
-    public static func only(_ categories: LogCategory..., logger: Logger) -> ViewModelLoggingMode {
-        .custom(categories: Set(categories), logger: logger)
-    }
-
-    /// 특정 카테고리 제외
-    public static func excluding(_ categories: LogCategory...) -> ViewModelLoggingMode {
-        let allCategories = Set(LogCategory.allCases)
-        let excluded = Set(categories)
-        return .custom(categories: allCategories.subtracting(excluded), logger: .shared)
-    }
-
-    /// 특정 카테고리 제외 (Logger 지정)
-    public static func excluding(_ categories: LogCategory..., logger: Logger) -> ViewModelLoggingMode {
-        let allCategories = Set(LogCategory.allCases)
-        let excluded = Set(categories)
-        return .custom(categories: allCategories.subtracting(excluded), logger: logger)
-    }
-
-    /// State 변경 로깅만 비활성화 (가장 시끄러운 로그)
-    public static var noStateChanges: ViewModelLoggingMode {
-        .excluding(.stateChange)
-    }
-
-    /// 성능 로깅만 활성화
-    public static var performanceOnly: ViewModelLoggingMode {
-        .only(.performance, .error)
-    }
-
-    // MARK: - Logger Accessor
-
-    /// 현재 모드의 Logger 반환
-    public var logger: Logger {
-        switch self {
-        case let .enabled(logger):
-            return logger
-        case .disabled:
-            return .shared
-        case let .minimal(logger):
-            return logger
-        case let .custom(_, logger):
-            return logger
-        }
-    }
-}
-
 // MARK: - ViewModelLoggingConfig
 
 /// ViewModel별 로깅 설정
@@ -141,29 +29,26 @@ public enum ViewModelLoggingMode: Sendable {
 ///
 /// ```swift
 /// // 매크로에서 자동 생성
-/// @AsyncViewModel(logging: .enabled)
+/// @AsyncViewModel
 /// final class MyViewModel: ObservableObject { ... }
 ///
 /// // 커스텀 Logger 지정
-/// @AsyncViewModel(logging: .enabled(.custom(DebugLogger())))
+/// @AsyncViewModel(logger: .custom(DebugLogger()))
 /// final class DebugViewModel: ObservableObject { ... }
 ///
-/// // 또는 직접 생성
-/// let config = ViewModelLoggingConfig(mode: .enabled)
-///     .withFormat(.detailed)
-///     .withStateDiffOnly(true)
+/// // 로깅 모드 + Logger + 포맷 조합
+/// @AsyncViewModel(logging: .minimal, logger: .custom(Logger()), format: .detailed)
+/// final class CustomViewModel: ObservableObject { ... }
 /// ```
 public struct ViewModelLoggingConfig: @unchecked Sendable {
-    /// 로깅 모드 (Logger 포함)
-    public let mode: ViewModelLoggingMode
+    /// 로깅 모드 (무엇을 로깅할지)
+    public let mode: LoggingMode
+
+    /// Logger 모드 (어디에 로깅할지)
+    public let loggerMode: LoggerMode
 
     /// ViewModel별 커스텀 로깅 옵션 (nil이면 전역 설정 사용)
     public let customOptions: LoggingOptions?
-
-    /// Logger 모드 (mode에서 추출)
-    public var loggerMode: ViewModelLoggingMode.Logger {
-        mode.logger
-    }
 
     /// 실제 사용할 로깅 옵션 (커스텀 설정이 있으면 사용, 없으면 전역 설정)
     @MainActor
@@ -178,62 +63,59 @@ public struct ViewModelLoggingConfig: @unchecked Sendable {
 
     /// 로깅이 활성화되어 있는지
     public var isEnabled: Bool {
-        switch mode {
-        case .enabled, .minimal, .custom:
-            return true
-        case .disabled:
-            return false
-        }
+        mode.isEnabled
     }
 
     /// 특정 카테고리가 활성화되어 있는지
     public func isCategoryEnabled(_ category: LogCategory) -> Bool {
-        guard isEnabled else { return false }
-
-        switch mode {
-        case .enabled:
-            return true
-        case .disabled:
-            return false
-        case .minimal:
-            return category == .error
-        case let .custom(categories, _):
-            return categories.contains(category)
-        }
+        mode.isCategoryEnabled(category)
     }
 
     /// 기본 설정 (전역 옵션 사용)
     public static let `default` = ViewModelLoggingConfig(
         mode: .enabled,
+        loggerMode: .shared,
         customOptions: nil
     )
 
     /// 비활성화 설정
     public static let disabled = ViewModelLoggingConfig(
         mode: .disabled,
+        loggerMode: .shared,
         customOptions: nil
     )
 
     /// 최소 설정
     public static let minimal = ViewModelLoggingConfig(
         mode: .minimal,
+        loggerMode: .shared,
         customOptions: nil
     )
 
     // MARK: - Initializers
 
     /// 기본 생성자 (전역 옵션 사용)
-    public init(mode: ViewModelLoggingMode) {
+    public init(mode: LoggingMode) {
         self.mode = mode
+        loggerMode = .shared
+        customOptions = nil
+    }
+
+    /// Logger 포함 생성자
+    public init(mode: LoggingMode, loggerMode: LoggerMode) {
+        self.mode = mode
+        self.loggerMode = loggerMode
         customOptions = nil
     }
 
     /// 전체 옵션 생성자
     public init(
-        mode: ViewModelLoggingMode,
+        mode: LoggingMode,
+        loggerMode: LoggerMode,
         customOptions: LoggingOptions?
     ) {
         self.mode = mode
+        self.loggerMode = loggerMode
         self.customOptions = customOptions
     }
 
@@ -242,6 +124,23 @@ public struct ViewModelLoggingConfig: @unchecked Sendable {
     /// 현재 customOptions 또는 기본값을 기반으로 새 옵션 생성
     private func currentOrNewOptions() -> LoggingOptions {
         customOptions ?? LoggingOptions()
+    }
+
+    /// 모든 카테고리에 동일한 포맷 설정 (이 ViewModel에서만 적용)
+    ///
+    /// - Parameter format: 로그 포맷 (.compact, .standard, .detailed)
+    /// - Returns: 새로운 ViewModelLoggingConfig
+    public func withFormat(_ format: LogFormat) -> ViewModelLoggingConfig {
+        let newOptions = LoggingOptions(
+            actionFormat: format,
+            stateFormat: format,
+            effectFormat: format
+        )
+        return ViewModelLoggingConfig(
+            mode: mode,
+            loggerMode: loggerMode,
+            customOptions: newOptions
+        )
     }
 
     /// Action 로그 포맷 설정 (이 ViewModel에서만 적용)
@@ -253,6 +152,7 @@ public struct ViewModelLoggingConfig: @unchecked Sendable {
         newOptions.actionFormat = format
         return ViewModelLoggingConfig(
             mode: mode,
+            loggerMode: loggerMode,
             customOptions: newOptions
         )
     }
@@ -266,6 +166,7 @@ public struct ViewModelLoggingConfig: @unchecked Sendable {
         newOptions.stateFormat = format
         return ViewModelLoggingConfig(
             mode: mode,
+            loggerMode: loggerMode,
             customOptions: newOptions
         )
     }
@@ -280,6 +181,7 @@ public struct ViewModelLoggingConfig: @unchecked Sendable {
         newOptions.effectFormat = format
         return ViewModelLoggingConfig(
             mode: mode,
+            loggerMode: loggerMode,
             customOptions: newOptions
         )
     }
@@ -293,6 +195,7 @@ public struct ViewModelLoggingConfig: @unchecked Sendable {
         newOptions.performanceThreshold = threshold
         return ViewModelLoggingConfig(
             mode: mode,
+            loggerMode: loggerMode,
             customOptions: newOptions
         )
     }
@@ -306,6 +209,7 @@ public struct ViewModelLoggingConfig: @unchecked Sendable {
         newOptions.showZeroPerformance = enabled
         return ViewModelLoggingConfig(
             mode: mode,
+            loggerMode: loggerMode,
             customOptions: newOptions
         )
     }
@@ -316,6 +220,7 @@ public struct ViewModelLoggingConfig: @unchecked Sendable {
     public func usingGlobalOptions() -> ViewModelLoggingConfig {
         ViewModelLoggingConfig(
             mode: mode,
+            loggerMode: loggerMode,
             customOptions: nil
         )
     }

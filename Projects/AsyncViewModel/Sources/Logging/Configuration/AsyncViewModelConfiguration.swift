@@ -166,7 +166,7 @@ public final class AsyncViewModelConfiguration: @unchecked Sendable {
     ///
     /// - Parameter mode: Logger 모드
     /// - Returns: 해당 모드에 맞는 Logger
-    public func logger(for mode: ViewModelLoggingMode.Logger) -> any ViewModelLogger {
+    public func logger(for mode: LoggerMode) -> any ViewModelLogger {
         switch mode {
         case .shared:
             return logger
