@@ -340,7 +340,7 @@ sequenceDiagram
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel.git", from: "1.2.0")
+    .package(url: "https://github.com/Jimmy-Jung/AsyncViewModel.git", from: "1.3.0")
 ]
 ```
 
@@ -704,11 +704,18 @@ final class SearchViewModel: ObservableObject {
 | 04 | [Release Checklist](Documents/04-Release-Checklist.md) | 릴리스 체크리스트 및 절차 | ⭐⭐ |
 | 05 | [AsyncTimer & Lifecycle Guide](Documents/05-AsyncTimer-And-Lifecycle-Guide.md) | 시간 기반 작업과 생명주기 관리 완벽 가이드 | ⭐⭐ |
 
+### 🧪 테스팅 & 로깅 (v1.3.0+)
+
+| 번호 | 문서명 | 설명 | 난이도 |
+|-----|-------|------|-------|
+| 06 | [**AsyncTestStore 완전 가이드**](Documents/06-AsyncTestStore-Guide.md) ⭐ NEW | AsyncTestStore, TestTimer, StateHistoryTracker 활용 가이드 | ⭐⭐ |
+| 07 | [**로깅 시스템 완전 가이드**](Documents/07-Logging-System-Guide.md) ⭐ NEW | 로깅 시스템 아키텍처, LoggerMode, 커스텀 로거 구현 | ⭐⭐⭐ |
+
 ### 🎯 추가 리소스
 
 - 🎯 [예제 프로젝트 README](Projects/AsyncViewModelExample/README.md) - 예제 실행 가이드
-- 🧪 [테스트 가이드](docs/Testing.md) - 테스트 작성법 (작성 예정)
-- ⚡ [성능 최적화](docs/Performance.md) - 성능 팁 (작성 예정)
+- 🧪 [AsyncTestStore 완전 가이드](Documents/06-AsyncTestStore-Guide.md) - 비동기 테스트 작성법
+- 📊 [로깅 시스템 완전 가이드](Documents/07-Logging-System-Guide.md) - 로깅 설정 및 커스터마이징
 
 ### 📖 추천 읽기 순서
 
@@ -829,13 +836,33 @@ AsyncViewModel의 향후 계획입니다. 피드백과 제안은 언제든 환�
 - ✅ 통합 문서 시스템 (5개 핵심 문서)
 - ✅ 테스트 커버리지 개선
 
-### v1.3.0 (계획 중)
+### v1.3.0 (완료)
+- ✅ 로깅 시스템 전면 개편
+  - 타입 안전 데이터 모델 (ActionInfo, EffectInfo, PerformanceInfo, StateModels, ValueSnapshot)
+  - LogFormatter 시스템 및 DefaultLogFormatter 추가
+  - PrettyPrinter 유틸리티 추가
+  - 로깅 설정 단순화 및 타입 안전성 개선
+- ✅ @AsyncViewModel 매크로 개선
+  - 로깅 파라미터 추가 (isLoggingEnabled, logLevel)
+  - 매크로 테스트 대폭 강화
+- ✅ Core 구조 개선
+  - AsyncViewModelProtocol Effect/Logging 로직 파일 분리
+  - Deprecated sleep Effect 메서드 제거
+  - ActionInfoConverter, EffectInfoConverter 내부 유틸리티 추가
+- ✅ 테스트 도구 개선
+  - StateHistoryTracker 테스트 유틸리티 추가
+  - AsyncTestStore 기능 확장
+  - TestTimer를 actor로 전환하여 동시성 안전성 향상
+- ✅ 예제 프로젝트 정리
+  - 레거시 예제 파일 삭제 및 간소화
+
+### v1.4.0 (계획 중)
 - [ ] SwiftUI Preview 지원 개선
 - [ ] 추가 Effect 타입 (retry, timeout)
 - [ ] 성능 최적화
 - [ ] 영문 문서
 
-### v1.3.0 (검토 중)
+### 미래 버전 (검토 중)
 - [ ] Observation 프레임워크 지원
 - [ ] 플러그인 시스템
 - [ ] 시각화 도구
