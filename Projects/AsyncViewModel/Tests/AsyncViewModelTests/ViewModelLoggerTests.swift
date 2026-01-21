@@ -351,7 +351,7 @@ struct ViewModelLoggerTests {
             Issue.record("No state changes observed")
             return
         }
-        #expect(lastChange.old.isEmpty)
+        #expect(lastChange.old.count == 0)
         #expect(lastChange.new.count == 1)
 
         // 정리

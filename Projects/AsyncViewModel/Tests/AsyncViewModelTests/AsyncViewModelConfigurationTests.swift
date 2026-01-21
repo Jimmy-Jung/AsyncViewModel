@@ -424,7 +424,7 @@ struct LoggerModeTests {
 
         switch mode {
         case .shared:
-            #expect(true)
+            #expect(Bool(true))
         case .custom:
             #expect(Bool(false), "Expected .shared but got .custom")
         }
