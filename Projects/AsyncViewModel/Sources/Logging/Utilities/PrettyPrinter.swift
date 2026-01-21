@@ -34,7 +34,7 @@ public struct PrettyPrinter: Sendable {
         }
 
         let mirror = Mirror(reflecting: value)
-        let indent = String(repeating: indentString, count: depth)
+        _ = String(repeating: indentString, count: depth)
         _ = String(repeating: indentString, count: depth + 1)
 
         switch mirror.displayStyle {
@@ -67,6 +67,9 @@ public struct PrettyPrinter: Sendable {
         case .none:
             // 기본 타입 (String, Int, Bool 등)
             return formatPrimitive(value)
+
+        case .foreignReference:
+            return String(describing: value)
 
         @unknown default:
             return String(describing: value)
@@ -152,9 +155,10 @@ public struct PrettyPrinter: Sendable {
             }
         }
 
-        if associatedValues.count == 1 && !associatedValues[0].contains(":") {
+        if associatedValues.count == 1 && !associatedValues[0].contains(":"),
+           let firstChild = mirror.children.first {
             // 단일 값인 경우 간단하게 표시
-            return ".\(caseName)(\(formatValue(mirror.children.first!.value, depth: depth)))"
+            return ".\(caseName)(\(formatValue(firstChild.value, depth: depth)))"
         }
 
         return ".\(caseName)(\n\(associatedValues.joined(separator: ",\n"))\n\(indent))"

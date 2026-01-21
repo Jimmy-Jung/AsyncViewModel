@@ -78,7 +78,16 @@ public struct ValueSnapshot: Sendable, Equatable {
         properties = ValueSnapshot.extractProperties(from: mirror)
     }
 
-    private static func extractProperties(from mirror: Mirror) -> [ValueProperty] {
+    /// Mirror에서 ValueProperty 배열 추출 (재사용 가능)
+    ///
+    /// - Parameters:
+    ///   - mirror: 분석할 Mirror
+    ///   - printer: 값 포맷팅에 사용할 PrettyPrinter (기본값: maxDepth nil)
+    /// - Returns: 추출된 ValueProperty 배열
+    static func extractProperties(
+        from mirror: Mirror,
+        printer: PrettyPrinter = PrettyPrinter(maxDepth: nil)
+    ) -> [ValueProperty] {
         return mirror.children.compactMap { child -> ValueProperty? in
             guard let label = child.label else { return nil }
 
@@ -86,7 +95,6 @@ public struct ValueSnapshot: Sendable, Equatable {
             let typeName = shortTypeName(child.value)
 
             // 원본 값 저장 (PrettyPrinter로 JSON 스타일 포맷팅)
-            let printer = PrettyPrinter(maxDepth: nil)
             let value = printer.format(child.value)
 
             // Optional 처리
@@ -96,7 +104,7 @@ public struct ValueSnapshot: Sendable, Equatable {
             let children: [ValueProperty]
             switch childMirror.displayStyle {
             case .struct, .class:
-                children = extractProperties(from: childMirror)
+                children = extractProperties(from: childMirror, printer: printer)
             default:
                 children = []
             }
@@ -111,13 +119,20 @@ public struct ValueSnapshot: Sendable, Equatable {
         }
     }
 
-    private static func isOptionalNil(_ value: Any) -> Bool {
+    /// Optional 값이 nil인지 확인 (재사용 가능)
+    ///
+    /// - Parameter value: 확인할 값
+    /// - Returns: Optional이면서 nil인 경우 true
+    static func isOptionalNil(_ value: Any) -> Bool {
         let mirror = Mirror(reflecting: value)
         guard mirror.displayStyle == .optional else { return false }
         return mirror.children.isEmpty
     }
 
-    private static func shortTypeName(_ value: Any) -> String {
+    /// 타입 이름에서 모듈 접두사 제거 (재사용 가능)
+    ///
+    /// 예: AsyncViewModelExample.Company.Department -> Company.Department
+    static func shortTypeName(_ value: Any) -> String {
         let fullName = String(describing: type(of: value))
         // 모듈 이름 제거 (첫 번째 '.'까지가 모듈명)
         // 예: AsyncViewModelExample.Company.Department -> Company.Department
@@ -154,7 +169,7 @@ public extension ValueSnapshot {
     }
 
     private func formatDetailed(properties: [ValueProperty], indent: Int) -> String {
-        let indentStr = String(repeating: "  ", count: indent)
+        _ = String(repeating: "  ", count: indent)
 
         if indent == 0 {
             let props = properties.map { property -> String in
