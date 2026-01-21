@@ -128,18 +128,18 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
         }
 
         // loggingConfig 프로퍼티 (로깅 설정)
-        // Logger는 이제 ViewModelLoggingMode에 포함됨
         if !existingProperties.contains("loggingConfig") {
             let loggingMode = extractLoggingMode(from: node)
+            let loggerMode = extractLoggerMode(from: node)
             let loggingOptions = extractLoggingOptions(from: node)
 
             let code: String
             if let options = loggingOptions {
                 // 커스텀 옵션이 설정됨
-                code = "public let loggingConfig: ViewModelLoggingConfig = ViewModelLoggingConfig(mode: \(loggingMode), customOptions: \(options))"
+                code = "public let loggingConfig: ViewModelLoggingConfig = ViewModelLoggingConfig(mode: \(loggingMode), loggerMode: \(loggerMode), customOptions: \(options))"
             } else {
                 // 전역 설정 사용
-                code = "public let loggingConfig: ViewModelLoggingConfig = ViewModelLoggingConfig(mode: \(loggingMode), customOptions: nil)"
+                code = "public let loggingConfig: ViewModelLoggingConfig = ViewModelLoggingConfig(mode: \(loggingMode), loggerMode: \(loggerMode), customOptions: nil)"
             }
             members.append(DeclSyntax(stringLiteral: code))
         }
@@ -156,11 +156,11 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
         in _: some MacroExpansionContext
     ) throws -> [AttributeSyntax] {
         // Input, Action, State, CancelID 같은 중첩 타입에는 @MainActor를 추가하지 않음
-        if let structDecl = member.as(StructDeclSyntax.self) {
+        if member.as(StructDeclSyntax.self) != nil {
             return []
         }
 
-        if let enumDecl = member.as(EnumDeclSyntax.self) {
+        if member.as(EnumDeclSyntax.self) != nil {
             return []
         }
 
@@ -240,9 +240,8 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
     }
 
     /// 매크로 어트리뷰트에서 로깅 모드를 추출합니다.
-    /// Logger가 ViewModelLoggingMode에 포함되어 있으므로, .enabled(.shared), .enabled(.custom(...)) 등의 형태를 처리합니다.
     private static func extractLoggingMode(from node: AttributeSyntax) -> String {
-        // 기본값: .enabled (static var enabled가 .enabled(.shared) 반환)
+        // 기본값: .enabled
         var loggingMode = ".enabled"
 
         // 인자 목록 확인
@@ -259,28 +258,22 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
             // 표현식 추출
             let expression = argument.expression
 
-            // .enabled(.shared), .enabled(.custom(...)), .custom(...), .only(...), .excluding(...) 같은 함수 호출 케이스
+            // .only(...), .excluding(...) 같은 함수 호출 케이스
             if let functionCall = expression.as(FunctionCallExprSyntax.self) {
                 let functionName = functionCall.calledExpression.as(MemberAccessExprSyntax.self)?.declName.baseName.text ?? ""
 
                 switch functionName {
-                case "enabled":
-                    loggingMode = parseEnabledLoggingMode(from: functionCall)
-                case "minimal":
-                    loggingMode = parseMinimalLoggingMode(from: functionCall)
-                case "custom":
-                    loggingMode = parseCustomLoggingMode(from: functionCall)
                 case "only":
                     loggingMode = parseOnlyLoggingMode(from: functionCall)
                 case "excluding":
                     loggingMode = parseExcludingLoggingMode(from: functionCall)
                 default:
-                    loggingMode = ".\(functionName)()"
+                    loggingMode = ".\(functionName)"
                 }
                 break
             }
 
-            // .enabled, .disabled, .minimal, .noStateChanges 같은 단순 케이스 (static var 사용)
+            // .enabled, .disabled, .minimal, .noStateChanges 같은 단순 케이스
             if let memberAccess = expression.as(MemberAccessExprSyntax.self) {
                 let memberName = memberAccess.declName.baseName.text
                 loggingMode = ".\(memberName)"
@@ -291,97 +284,43 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
         return loggingMode
     }
 
-    /// .enabled(...) 모드 파싱 (Logger 포함)
-    private static func parseEnabledLoggingMode(from call: FunctionCallExprSyntax) -> String {
-        // 인자가 없으면 기본 .shared
-        guard let firstArg = call.arguments.first else {
-            return ".enabled(.shared)"
+    /// 매크로 어트리뷰트에서 Logger 모드를 추출합니다.
+    private static func extractLoggerMode(from node: AttributeSyntax) -> String {
+        // 기본값: .shared
+        var loggerMode = ".shared"
+
+        // 인자 목록 확인
+        guard let arguments = node.arguments?.as(LabeledExprListSyntax.self) else {
+            return loggerMode
         }
 
-        let loggerExpr = firstArg.expression
-
-        // .shared 케이스
-        if let memberAccess = loggerExpr.as(MemberAccessExprSyntax.self) {
-            return ".enabled(.\(memberAccess.declName.baseName.text))"
-        }
-
-        // .custom(SomeLogger()) 케이스
-        if let functionCall = loggerExpr.as(FunctionCallExprSyntax.self) {
-            if let memberAccess = functionCall.calledExpression.as(MemberAccessExprSyntax.self),
-               memberAccess.declName.baseName.text == "custom"
-            {
-                let argumentsText = functionCall.arguments.map { $0.expression.description }.joined(separator: ", ")
-                return ".enabled(.custom(\(argumentsText)))"
+        // logger 파라미터 찾기
+        for argument in arguments {
+            guard let label = argument.label?.text, label == "logger" else {
+                continue
             }
-        }
 
-        return ".enabled(.shared)"
-    }
+            let expression = argument.expression
 
-    /// .minimal(...) 모드 파싱 (Logger 포함)
-    private static func parseMinimalLoggingMode(from call: FunctionCallExprSyntax) -> String {
-        // 인자가 없으면 기본 .shared
-        guard let firstArg = call.arguments.first else {
-            return ".minimal(.shared)"
-        }
-
-        let loggerExpr = firstArg.expression
-
-        // .shared 케이스
-        if let memberAccess = loggerExpr.as(MemberAccessExprSyntax.self) {
-            return ".minimal(.\(memberAccess.declName.baseName.text))"
-        }
-
-        // .custom(SomeLogger()) 케이스
-        if let functionCall = loggerExpr.as(FunctionCallExprSyntax.self) {
-            if let memberAccess = functionCall.calledExpression.as(MemberAccessExprSyntax.self),
-               memberAccess.declName.baseName.text == "custom"
-            {
-                let argumentsText = functionCall.arguments.map { $0.expression.description }.joined(separator: ", ")
-                return ".minimal(.custom(\(argumentsText)))"
+            // .shared 케이스
+            if let memberAccess = expression.as(MemberAccessExprSyntax.self) {
+                loggerMode = ".\(memberAccess.declName.baseName.text)"
+                break
             }
-        }
 
-        return ".minimal(.shared)"
-    }
-
-    /// .custom(...) 모드 파싱 (categories와 logger만 지원)
-    private static func parseCustomLoggingMode(from call: FunctionCallExprSyntax) -> String {
-        var params: [String] = []
-
-        for argument in call.arguments {
-            guard let label = argument.label?.text else { continue }
-
-            let expr = argument.expression
-
-            switch label {
-            case "categories":
-                if let arrayExpr = expr.as(ArrayExprSyntax.self) {
-                    let categories = arrayExpr.elements.compactMap { element in
-                        element.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text
-                    }
-                    if !categories.isEmpty {
-                        params.append("categories: Set([\(categories.map { ".\($0)" }.joined(separator: ", "))])")
-                    }
+            // .custom(SomeLogger()) 케이스
+            if let functionCall = expression.as(FunctionCallExprSyntax.self) {
+                if let memberAccess = functionCall.calledExpression.as(MemberAccessExprSyntax.self),
+                   memberAccess.declName.baseName.text == "custom"
+                {
+                    let argumentsText = functionCall.arguments.map { $0.expression.description }.joined(separator: ", ")
+                    loggerMode = ".custom(\(argumentsText))"
                 }
-            case "logger":
-                // Logger 파라미터 처리
-                if let memberAccess = expr.as(MemberAccessExprSyntax.self) {
-                    params.append("logger: .\(memberAccess.declName.baseName.text)")
-                } else if let functionCall = expr.as(FunctionCallExprSyntax.self) {
-                    if let memberAccess = functionCall.calledExpression.as(MemberAccessExprSyntax.self),
-                       memberAccess.declName.baseName.text == "custom"
-                    {
-                        let argumentsText = functionCall.arguments.map { $0.expression.description }.joined(separator: ", ")
-                        params.append("logger: .custom(\(argumentsText))")
-                    }
-                }
-            default:
                 break
             }
         }
 
-        return ".custom(\(params.joined(separator: ", ")))"
+        return loggerMode
     }
 
     /// .only(...) 모드 파싱
@@ -390,9 +329,9 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
             argument.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text
         }
         if !categories.isEmpty {
-            return ".only(\(categories.map { ".\($0)" }.joined(separator: ", ")))"
+            return ".only(Set([\(categories.map { ".\($0)" }.joined(separator: ", "))]))"
         }
-        return ".only()"
+        return ".enabled"
     }
 
     /// .excluding(...) 모드 파싱
@@ -401,55 +340,92 @@ public struct AsyncViewModelMacroImpl: MemberMacro, MemberAttributeMacro, Extens
             argument.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text
         }
         if !categories.isEmpty {
-            return ".excluding(\(categories.map { ".\($0)" }.joined(separator: ", ")))"
+            return ".excluding(Set([\(categories.map { ".\($0)" }.joined(separator: ", "))]))"
         }
-        return ".excluding()"
+        return ".enabled"
     }
 
     /// 매크로 어트리뷰트에서 로깅 옵션을 추출합니다.
-    /// 옵션이 하나라도 설정되어 있으면 LoggingOptions 생성 코드 반환, 없으면 nil 반환
+    /// format 파라미터가 설정되어 있으면 LoggingOptions 생성 코드 반환, 없으면 nil 반환
     private static func extractLoggingOptions(from node: AttributeSyntax) -> String? {
         // 인자 목록 확인
         guard let arguments = node.arguments?.as(LabeledExprListSyntax.self) else {
             return nil
         }
 
-        var format: String?
-        var groupEffects: String?
-
+        // format 파라미터 찾기
         for argument in arguments {
-            guard let label = argument.label?.text else { continue }
+            guard let label = argument.label?.text, label == "format" else { continue }
             let expression = argument.expression
 
-            switch label {
-            case "format":
-                if let memberAccess = expression.as(MemberAccessExprSyntax.self) {
-                    format = ".\(memberAccess.declName.baseName.text)"
+            // .compact, .standard, .detailed 같은 단순 케이스
+            if let memberAccess = expression.as(MemberAccessExprSyntax.self) {
+                let formatName = memberAccess.declName.baseName.text
+                // 단일 포맷: 모든 카테고리에 동일하게 적용
+                return "LoggingOptions(actionFormat: .\(formatName), stateFormat: .\(formatName), effectFormat: .\(formatName))"
+            }
+
+            // .perCategory(...), .action(...), .state(...), .effect(...) 같은 함수 호출 케이스
+            if let functionCall = expression.as(FunctionCallExprSyntax.self) {
+                if let memberAccess = functionCall.calledExpression.as(MemberAccessExprSyntax.self) {
+                    let functionName = memberAccess.declName.baseName.text
+
+                    switch functionName {
+                    case "perCategory":
+                        return parsePerCategoryFormat(from: functionCall)
+                    case "action":
+                        if let format = extractSingleFormat(from: functionCall) {
+                            return "LoggingOptions(actionFormat: .\(format))"
+                        }
+                    case "state":
+                        if let format = extractSingleFormat(from: functionCall) {
+                            return "LoggingOptions(stateFormat: .\(format))"
+                        }
+                    case "effect":
+                        if let format = extractSingleFormat(from: functionCall) {
+                            return "LoggingOptions(effectFormat: .\(format))"
+                        }
+                    default:
+                        break
+                    }
                 }
-            case "groupEffects":
-                if let boolLiteral = expression.as(BooleanLiteralExprSyntax.self) {
-                    groupEffects = boolLiteral.literal.text
-                }
-            default:
-                break
             }
         }
 
-        // 아무 옵션도 설정되지 않았으면 nil 반환 (전역 설정 사용)
-        if format == nil, groupEffects == nil {
-            return nil
+        return nil
+    }
+
+    /// .perCategory(action: .compact, state: .detailed, effect: .standard) 파싱
+    private static func parsePerCategoryFormat(from call: FunctionCallExprSyntax) -> String {
+        var actionFormat = ".standard"
+        var stateFormat = ".standard"
+        var effectFormat = ".standard"
+
+        for argument in call.arguments {
+            guard let label = argument.label?.text else { continue }
+
+            if let memberAccess = argument.expression.as(MemberAccessExprSyntax.self) {
+                let format = ".\(memberAccess.declName.baseName.text)"
+                switch label {
+                case "action":
+                    actionFormat = format
+                case "state":
+                    stateFormat = format
+                case "effect":
+                    effectFormat = format
+                default:
+                    break
+                }
+            }
         }
 
-        // LoggingOptions 생성 코드 반환
-        var params: [String] = []
-        if let format = format {
-            params.append("format: \(format)")
-        }
-        if let groupEffects = groupEffects {
-            params.append("groupEffects: \(groupEffects)")
-        }
+        return "LoggingOptions(actionFormat: \(actionFormat), stateFormat: \(stateFormat), effectFormat: \(effectFormat))"
+    }
 
-        return "LoggingOptions(\(params.joined(separator: ", ")))"
+    /// 단일 포맷 함수 호출에서 포맷 추출 (예: .action(.compact))
+    private static func extractSingleFormat(from call: FunctionCallExprSyntax) -> String? {
+        guard let firstArg = call.arguments.first else { return nil }
+        return firstArg.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text
     }
 }
 
