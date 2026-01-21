@@ -12,7 +12,10 @@ import Foundation
 ///
 /// 중첩 구조체, 배열, Optional 등 다양한 타입을 포함한 State로
 /// 구조화된 로그 출력을 테스트할 수 있습니다.
-@AsyncViewModel(logging: .enabled)
+@AsyncViewModel(
+    logging: .enabled,
+    format: .detailed
+)
 final class ComplexStateViewModel: ObservableObject {
     // MARK: - Types
 
@@ -50,7 +53,11 @@ final class ComplexStateViewModel: ObservableObject {
         case asyncUpdateCompleted
         // 3중 중첩 테스트
         case companyLoaded(Company)
-        case teamMemberAdded(departmentId: String, teamId: String, member: Company.Department.Team.Member)
+        case teamMemberAdded(
+            departmentId: String,
+            teamId: String,
+            member: Company.Department.Team.Member
+        )
         case teamProjectCountUpdated(departmentId: String, teamId: String, count: Int)
         case companyHeadquartersUpdated(Address)
     }
@@ -184,7 +191,9 @@ final class ComplexStateViewModel: ObservableObject {
             return [.teamMemberAdded(departmentId: departmentId, teamId: teamId, member: newMember)]
 
         case let .updateTeamProjectCount(departmentId, teamId, count):
-            return [.teamProjectCountUpdated(departmentId: departmentId, teamId: teamId, count: count)]
+            return [
+                .teamProjectCountUpdated(departmentId: departmentId, teamId: teamId, count: count),
+            ]
 
         case .updateCompanyHeadquarters:
             let newAddress = Address(
@@ -288,7 +297,9 @@ final class ComplexStateViewModel: ObservableObject {
         case let .teamMemberAdded(departmentId, teamId, member):
             guard var company = state.company,
                   let deptIndex = company.departments.firstIndex(where: { $0.id == departmentId }),
-                  let teamIndex = company.departments[deptIndex].teams.firstIndex(where: { $0.id == teamId })
+                  let teamIndex = company.departments[deptIndex].teams.firstIndex(where: {
+                      $0.id == teamId
+                  })
             else {
                 return [.none]
             }
@@ -301,7 +312,9 @@ final class ComplexStateViewModel: ObservableObject {
         case let .teamProjectCountUpdated(departmentId, teamId, count):
             guard var company = state.company,
                   let deptIndex = company.departments.firstIndex(where: { $0.id == departmentId }),
-                  let teamIndex = company.departments[deptIndex].teams.firstIndex(where: { $0.id == teamId })
+                  let teamIndex = company.departments[deptIndex].teams.firstIndex(where: {
+                      $0.id == teamId
+                  })
             else {
                 return [.none]
             }

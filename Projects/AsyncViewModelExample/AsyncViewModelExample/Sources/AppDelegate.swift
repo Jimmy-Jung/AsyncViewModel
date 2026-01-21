@@ -68,8 +68,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 // ## 앱 시작단 전역 설정 (AppDelegate)
 //
 // let config = AsyncViewModelConfiguration.shared
-// config.configure(format: .detailed)
-// config.configure(groupEffects: true)
+// config.configure(actionFormat: .detailed)
+// config.configure(stateFormat: .compact)
 //
 // ## 특정 ViewModel에서 별도 설정 (매크로 파라미터)
 //
@@ -88,24 +88,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 //     // 이 ViewModel만 compact 포맷 사용
 // }
 //
-// @AsyncViewModel(format: .detailed, groupEffects: true)
+// @AsyncViewModel(format: .perCategory(action: .compact, state: .detailed))
 // final class FullCustomViewModel: ObservableObject {
-//     // 모든 옵션을 이 ViewModel에서 직접 설정
+//     // 카테고리별 개별 포맷 설정
 // }
 //
-// ## Logger 설정 (logging 파라미터에 통합됨)
+// ## Logger 설정 (별도 파라미터)
 //
-// @AsyncViewModel(logging: .enabled(.custom(DebugLogger())))
+// @AsyncViewModel(logger: .custom(DebugLogger()))
 // final class DebugViewModel: ObservableObject {
 //     // 커스텀 Logger 사용
 // }
 //
-// @AsyncViewModel(logging: .enabled(.custom(DebugLogger())), format: .detailed)
+// @AsyncViewModel(logger: .custom(DebugLogger()), format: .detailed)
 // final class DebugWithOptionsViewModel: ObservableObject {
 //     // 커스텀 Logger와 포맷 조합
 // }
 //
-// @AsyncViewModel(logging: .minimal(.custom(TraceKitLogger())))
+// @AsyncViewModel(logging: .minimal, logger: .custom(TraceKitLogger()))
 // final class MinimalDebugViewModel: ObservableObject {
 //     // minimal 모드에서 커스텀 Logger 사용
 // }
