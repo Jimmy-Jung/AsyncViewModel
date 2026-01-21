@@ -459,7 +459,7 @@ public extension AsyncTestStore {
     ///     #expect(store.state.count == 1)
     /// }
     /// ```
-    static func withStore<T>(
+    static func withStore<T: Sendable>(
         viewModel: ViewModel,
         _ operation: (AsyncTestStore) async throws -> T
     ) async rethrows -> T {

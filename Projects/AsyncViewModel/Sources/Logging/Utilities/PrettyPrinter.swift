@@ -68,10 +68,8 @@ public struct PrettyPrinter: Sendable {
             // 기본 타입 (String, Int, Bool 등)
             return formatPrimitive(value)
 
-        case .foreignReference:
-            return String(describing: value)
-
-        @unknown default:
+        default:
+            // foreignReference 및 기타 플랫폼별 케이스 처리
             return String(describing: value)
         }
     }
