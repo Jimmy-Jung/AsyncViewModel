@@ -214,16 +214,28 @@ final class MyViewModel: ObservableObject {
 ```swift
 import AsyncViewModel
 
-// 로깅 활성화 + 디버그 레벨
-@AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
+// 로깅 활성화 (기본값)
+@AsyncViewModel(logging: .enabled)
 final class MyViewModel: ObservableObject {
     // 매크로가 @MainActor를 모든 멤버와 extension에 자동 추가
 }
 
 // 로깅 비활성화 (프로덕션)
-@AsyncViewModel(isLoggingEnabled: false)
+@AsyncViewModel(logging: .disabled)
 final class MyViewModel: ObservableObject {
     // 프로덕션에서도 @MainActor 안전성 보장
+}
+
+// 특정 카테고리만 로깅
+@AsyncViewModel(logging: .only(.action, .error))
+final class MyViewModel: ObservableObject {
+    // Action과 Error만 로깅
+}
+
+// 커스텀 로거 사용
+@AsyncViewModel(logger: .custom(OSLogViewModelLogger()))
+final class MyViewModel: ObservableObject {
+    // OSLog 로거 사용
 }
 ```
 
@@ -235,45 +247,60 @@ final class MyViewModel: ObservableObject {
 | `effectQueue` | `[AsyncEffect<Action, CancelID>]` | Effect 직렬 처리 큐 |
 | `isProcessingEffects` | `Bool` | Effect 처리 상태 플래그 |
 | `actionObserver` | `((Action) -> Void)?` | 액션 관찰 훅 (테스트/디버깅) |
-| `isLoggingEnabled` | `Bool` | 로깅 활성화 플래그 |
-| `logLevel` | `LogLevel` | 로깅 레벨 (.verbose, .debug, .info, .warning, .error, .fatal) |
 | `stateChangeObserver` | `((State, State) -> Void)?` | 상태 변경 관찰 훅 |
 | `effectObserver` | `((AsyncEffect) -> Void)?` | Effect 실행 관찰 훅 |
 | `performanceObserver` | `((String, TimeInterval) -> Void)?` | 성능 메트릭 관찰 훅 |
+| `timer` | `any AsyncTimer` | 타이머 (기본값: SystemTimer) |
+| `loggingConfig` | `ViewModelLoggingConfig` | ViewModel별 로깅 설정 |
 
-### 로깅 카테고리
+### 로깅 모드 & 카테고리
 
-로깅은 카테고리별로 활성화/비활성화할 수 있습니다:
+로깅은 모드와 카테고리별로 활성화/비활성화할 수 있습니다:
 
-```swift
-public enum LogCategory: String {
-    case action       // Action 처리 로그
-    case stateChange  // State 변경 로그
-    case effect       // Effect 실행 로그
-    case performance  // 성능 측정 로그
-    case error        // 에러 로그
-}
-```
+**로깅 모드:**
+- `.enabled`: 모든 카테고리 로깅
+- `.disabled`: 로깅 완전 비활성화
+- `.minimal`: 최소 로깅 (성능 중심)
+- `.only(...)`: 특정 카테고리만 로깅
+- `.excluding(...)`: 특정 카테고리 제외
+
+**로깅 카테고리:**
+- `.action`: Action 처리 로그
+- `.stateChange`: State 변경 로그
+- `.effect`: Effect 실행 로그
+- `.performance`: 성능 측정 로그
 
 **사용 예시:**
 
 ```swift
 import AsyncViewModel
 
+// 모든 로그 출력
 @AsyncViewModel(logging: .enabled)
-final class DebugViewModel: ObservableObject {
-    // 모든 로그 출력
-}
+final class DebugViewModel: ObservableObject {}
 
-@AsyncViewModel(logging: .minimal)
-final class ProductionViewModel: ObservableObject {
-    // 에러만 로깅
-}
+// 로깅 비활성화
+@AsyncViewModel(logging: .disabled)
+final class ProductionViewModel: ObservableObject {}
 
-@AsyncViewModel(logging: .only(.action, .error))
-final class CustomViewModel: ObservableObject {
-    // Action과 Error만 로깅
-}
+// 특정 카테고리만 로깅
+@AsyncViewModel(logging: .only(.action, .stateChange))
+final class CustomViewModel: ObservableObject {}
+
+// 특정 카테고리 제외
+@AsyncViewModel(logging: .excluding(.performance))
+final class AppViewModel: ObservableObject {}
+
+// 로깅 옵션 커스터마이징
+@AsyncViewModel(
+    logging: .enabled,
+    loggingOptions: LoggingOptions(
+        categories: [.action, .stateChange],
+        format: .detailed,
+        stateDiffOnly: true
+    )
+)
+final class AdvancedViewModel: ObservableObject {}
 ```
 
 ## 핵심 개념
@@ -776,25 +803,33 @@ final class SearchViewModel: ObservableObject {
 ```swift
 import AsyncViewModel
 
-// 1. 매크로 파라미터로 설정
-@AsyncViewModel(isLoggingEnabled: true, logLevel: .debug)
+// 1. 매크로 파라미터로 설정 (권장)
+@AsyncViewModel(logging: .enabled)
+@AsyncViewModel(logging: .only(.action, .error))
+@AsyncViewModel(logger: .custom(OSLogViewModelLogger()))
 
-// 2. 런타임에 변경
-viewModel.isLoggingEnabled = false
-viewModel.logLevel = .error
+// 2. 로깅 옵션 상세 설정
+@AsyncViewModel(
+    logging: .enabled,
+    loggingOptions: LoggingOptions(
+        categories: [.action, .stateChange],
+        format: .detailed,
+        stateDiffOnly: true,
+        groupEffects: true
+    )
+)
 
-// 3. TraceKit 통합 (권장)
-// TraceKit을 별도로 설치한 경우 사용 가능
-Task { @TraceKitActor in
-    await TraceKitBuilder.debug().buildAsShared()
-}
+// 3. 런타임에 변경
+viewModel.loggingConfig.isEnabled = false
+viewModel.loggingConfig.options.categories = [.performance]
 
-Task { @MainActor in
-    let logger = TraceKitViewModelLogger()
-    LoggerConfiguration.setLogger(logger)
-}
+// 4. 전역 로깅 설정
+AsyncViewModelConfiguration.shared.globalOptions = LoggingOptions(
+    categories: [.action, .stateChange],
+    format: .standard
+)
 
-// 4. 관찰자 훅 사용
+// 5. 관찰자 훅 사용 (테스트/디버깅)
 viewModel.actionObserver = { action in
     print("Action:", action)
 }
@@ -803,7 +838,9 @@ viewModel.performanceObserver = { operation, duration in
 }
 ```
 
-자세한 내용은 [Logger Configuration 가이드](Documents/02-Logger-Configuration.md)를 참고하세요.
+자세한 내용은 다음 가이드를 참고하세요:
+- [로깅 시스템 완전 가이드](Documents/07-Logging-System-Guide.md) - 로깅 아키텍처 및 커스터마이징
+- [Logger Configuration 가이드](Documents/02-Logger-Configuration.md) - ViewModelLoggerBuilder 사용법
 
 ### Q: import 방식의 차이는?
 
