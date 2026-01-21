@@ -9,55 +9,61 @@ import Foundation
 
 @MainActor
 public protocol ViewModelLogger: Sendable {
+    /// 로깅 옵션
+    ///
+    /// AsyncViewModelProtocol에서 ViewModel별 설정을 주입합니다.
     var options: LoggingOptions { get set }
 
+    /// 구조화된 Action 로그
+    ///
+    /// ActionInfo를 통해 로거가 직접 포맷팅을 제어할 수 있습니다.
     func logAction(
-        _ action: String,
+        _ action: ActionInfo,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
     )
 
+    /// 구조화된 State 변경 로그
+    ///
+    /// StateChangeInfo를 통해 로거가 직접 포맷팅을 제어할 수 있습니다.
     func logStateChange(
-        from oldState: String,
-        to newState: String,
+        _ stateChange: StateChangeInfo,
         viewModel: String,
         file: String,
         function: String,
         line: Int
     )
 
+    /// 구조화된 단일 Effect 로그
+    ///
+    /// EffectInfo를 통해 로거가 직접 포맷팅을 제어할 수 있습니다.
     func logEffect(
-        _ effect: String,
+        _ effect: EffectInfo,
         viewModel: String,
         file: String,
         function: String,
         line: Int
     )
 
+    /// 구조화된 여러 Effect 로그
+    ///
+    /// EffectInfo 배열을 통해 로거가 직접 포맷팅을 제어할 수 있습니다.
     func logEffects(
-        _ effects: [String],
+        _ effects: [EffectInfo],
         viewModel: String,
         file: String,
         function: String,
         line: Int
     )
 
-    func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel: String,
-        file: String,
-        function: String,
-        line: Int
-    )
-
+    /// 구조화된 성능 측정 로그
+    ///
+    /// PerformanceInfo를 통해 로거가 직접 포맷팅을 제어할 수 있습니다.
     func logPerformance(
-        operation: String,
-        duration: TimeInterval,
+        _ performance: PerformanceInfo,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
@@ -66,7 +72,6 @@ public protocol ViewModelLogger: Sendable {
     func logError(
         _ error: SendableError,
         viewModel: String,
-        level: LogLevel,
         file: String,
         function: String,
         line: Int
@@ -77,9 +82,8 @@ public protocol ViewModelLogger: Sendable {
 
 public extension ViewModelLogger {
     func logAction(
-        _ action: String,
+        _ action: ActionInfo,
         viewModel: String,
-        level: LogLevel = .info,
         file: String = #file,
         function: String = #function,
         line: Int = #line
@@ -87,7 +91,6 @@ public extension ViewModelLogger {
         logAction(
             action,
             viewModel: viewModel,
-            level: level,
             file: file,
             function: function,
             line: line
@@ -95,16 +98,14 @@ public extension ViewModelLogger {
     }
 
     func logStateChange(
-        from oldState: String,
-        to newState: String,
+        _ stateChange: StateChangeInfo,
         viewModel: String,
         file: String = #file,
         function: String = #function,
         line: Int = #line
     ) {
         logStateChange(
-            from: oldState,
-            to: newState,
+            stateChange,
             viewModel: viewModel,
             file: file,
             function: function,
@@ -113,7 +114,7 @@ public extension ViewModelLogger {
     }
 
     func logEffect(
-        _ effect: String,
+        _ effect: EffectInfo,
         viewModel: String,
         file: String = #file,
         function: String = #function,
@@ -129,7 +130,7 @@ public extension ViewModelLogger {
     }
 
     func logEffects(
-        _ effects: [String],
+        _ effects: [EffectInfo],
         viewModel: String,
         file: String = #file,
         function: String = #function,
@@ -144,36 +145,16 @@ public extension ViewModelLogger {
         )
     }
 
-    func logStateDiff(
-        changes: [String: (old: String, new: String)],
-        viewModel: String,
-        file: String = #file,
-        function: String = #function,
-        line: Int = #line
-    ) {
-        logStateDiff(
-            changes: changes,
-            viewModel: viewModel,
-            file: file,
-            function: function,
-            line: line
-        )
-    }
-
     func logPerformance(
-        operation: String,
-        duration: TimeInterval,
+        _ performance: PerformanceInfo,
         viewModel: String,
-        level: LogLevel = .info,
         file: String = #file,
         function: String = #function,
         line: Int = #line
     ) {
         logPerformance(
-            operation: operation,
-            duration: duration,
+            performance,
             viewModel: viewModel,
-            level: level,
             file: file,
             function: function,
             line: line
@@ -183,7 +164,6 @@ public extension ViewModelLogger {
     func logError(
         _ error: SendableError,
         viewModel: String,
-        level: LogLevel = .error,
         file: String = #file,
         function: String = #function,
         line: Int = #line
@@ -191,7 +171,6 @@ public extension ViewModelLogger {
         logError(
             error,
             viewModel: viewModel,
-            level: level,
             file: file,
             function: function,
             line: line

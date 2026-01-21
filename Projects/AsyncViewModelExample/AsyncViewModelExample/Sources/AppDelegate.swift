@@ -15,8 +15,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        // TraceKit 설정 및 AsyncViewModel과 통합
-        setupTraceKit()
+        configureTraceKit()
+        configureAsyncViewModel()
 
         return true
     }
@@ -39,40 +39,35 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didDiscardSceneSessions _: Set<UISceneSession>
     ) {}
 
-    // MARK: - TraceKit Setup
+    // MARK: - TraceKit Configuration
 
-    private func setupTraceKit() {
-        Task {
-            await initializeTraceKit()
-            configureAsyncViewModelLogger()
+    private func configureTraceKit() {
+        Task { @TraceKitActor in
+            await TraceKitBuilder()
+                .addOSLog(
+                    subsystem: "com.jimmy.AsyncViewModel",
+                    minLevel: .verbose
+                )
+                .with(configuration: .debug)
+                .withDefaultSanitizer()
+                .applyLaunchArguments()
+                .buildAsShared()
+
+            TraceKit.info("✅ TraceKit initialized with OSLog")
         }
     }
 
-    @TraceKitActor
-    private func initializeTraceKit() async {
-        await TraceKitBuilder()
-            .addOSLog(
-                subsystem: Bundle.main.bundleIdentifier ?? "com.asyncviewmodel.example",
-                minLevel: .verbose,
-                formatter: PrettyTraceFormatter.standard
-            )
-            .with(configuration: .debug)
-            .withDefaultSanitizer()
-            .applyLaunchArguments()
-            .buildAsShared()
+    // MARK: - AsyncViewModel Configuration
 
-        await TraceKit.async.info("✅ TraceKit initialized successfully (OSLog)")
-    }
+    private func configureAsyncViewModel() {
+        let config = AsyncViewModelConfiguration.shared
 
-    private func configureAsyncViewModelLogger() {
-        ViewModelLoggerBuilder()
-            .addLogger(TraceKitViewModelLogger())
-            .withFormat(.compact)
-            .withMinimumLevel(.info)
-            .withStateDiffOnly(true)
-            .withGroupEffects(true)
-            .buildAsShared()
+        config.configure(actionFormat: .detailed)
+        config.configure(stateFormat: .detailed)
+        config.configure(effectFormat: .detailed)
 
-        TraceKit.info("✅ AsyncViewModel logger configured with builder pattern")
+        config.changeLogger(TraceKitViewModelLogger())
+
+        TraceKit.info("✅ AsyncViewModel configured with TraceKit logging")
     }
 }

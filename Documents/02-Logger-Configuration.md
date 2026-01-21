@@ -243,8 +243,7 @@ await ViewModelLoggerBuilder()
 ```swift
 var logger = OSLogViewModelLogger(subsystem: "com.app")
 logger.options.format = .compact
-logger.options.minimumLevel = .info
-logger.options.showStateDiffOnly = true
+logger.options.groupEffects = true
 LoggerConfiguration.setLogger(logger)
 ```
 
@@ -253,8 +252,7 @@ LoggerConfiguration.setLogger(logger)
 await ViewModelLoggerBuilder()
     .addLogger(OSLogViewModelLogger(subsystem: "com.app"))
     .withFormat(.compact)
-    .withMinimumLevel(.info)
-    .withStateDiffOnly(true)
+    .withGroupEffects(true)
     .buildAsShared()
 ```
 

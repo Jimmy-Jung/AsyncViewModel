@@ -56,7 +56,7 @@ public extension CalculatorUIKitViewModel {
     }
 }
 
-@AsyncViewModel
+@AsyncViewModel(logging: .enabled)
 public final class CalculatorUIKitViewModel: ObservableObject {
     // MARK: - Properties
 

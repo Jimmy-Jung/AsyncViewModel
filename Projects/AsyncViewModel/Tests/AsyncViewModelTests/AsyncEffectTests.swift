@@ -11,7 +11,6 @@ import Testing
 
 @MainActor
 struct AsyncEffectTests {
-
     enum MockAction: Equatable, Sendable {
         case increment
         case decrement
@@ -43,7 +42,7 @@ struct AsyncEffectTests {
         #expect(AsyncEffect<MockAction, MockCancelID>.run(id: MockCancelID.taskA, operation: op1) == .run(id: MockCancelID.taskA, operation: op2))
         #expect(AsyncEffect<MockAction, MockCancelID>.run(id: MockCancelID.taskA, operation: op1) != .run(id: MockCancelID.taskB, operation: op1))
     }
-    
+
     @Test("Equatable: .run은 ID가 nil일 때 동일하다")
     func equatable_runIsEqualWithNilID() {
         let op1 = AsyncOperation<MockAction> { .none }
@@ -58,8 +57,6 @@ struct AsyncEffectTests {
         #expect(AsyncEffect<MockAction, MockCancelID>.cancel(id: MockCancelID.taskA) != .cancel(id: MockCancelID.taskB))
     }
 
-
-
     @Test("Equatable: .concurrent는 내부 배열이 동일할 때 동일하다")
     func equatable_concurrentIsEqualWithSameEffects() {
         let effect1: AsyncEffect<MockAction, MockCancelID> = .action(.increment)
@@ -68,7 +65,7 @@ struct AsyncEffectTests {
         #expect(AsyncEffect.concurrent([effect1, effect2]) == .concurrent([effect1, effect2]))
         #expect(AsyncEffect.concurrent([effect1, effect2]) != .concurrent([effect2, effect1]))
     }
-    
+
     @Test("Equatable: 다른 타입의 Effect는 동일하지 않다")
     func equatable_differentEffectTypesAreNotEqual() {
         #expect(AsyncEffect<MockAction, MockCancelID>.none != .action(.increment))
@@ -76,8 +73,6 @@ struct AsyncEffectTests {
     }
 
     // MARK: - Convenience API Tests
-
-
 
     @Test("Convenience: .concurrent 편의 API가 올바르게 동작한다")
     func convenience_concurrentAPIsWorkCorrectly() {
@@ -95,7 +90,7 @@ struct AsyncEffectTests {
             Issue.record("run이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let result = await operation()
         #expect(result == .action(.increment))
     }
@@ -104,27 +99,28 @@ struct AsyncEffectTests {
     func convenience_runReturnsErrorOnFailure() async {
         enum TestError: Error { case failure }
         let effect = AsyncEffect<MockAction, MockCancelID>.run { throw TestError.failure }
-        
+
         guard case let .run(_, operation) = effect else {
             Issue.record("run이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let result = await operation()
         #expect(result == .error(SendableError(TestError.failure)))
     }
 
-    @Test("Convenience: .sleepThen이 지정된 시간 후 액션을 반환한다")
-    func convenience_sleepThenReturnsActionAfterDelay() async {
-        let effect: AsyncEffect<MockAction, MockCancelID> = .sleepThen(for: 0.1, action: .increment)
-        
-        guard case let .run(_, operation) = effect else {
-            Issue.record("sleepThen이 .run Effect를 생성하지 않음")
+    @Test("Convenience: .sleepThen case가 올바르게 생성된다")
+    func convenience_sleepThenCaseCreatedCorrectly() {
+        let effect: AsyncEffect<MockAction, MockCancelID> = .sleepThen(id: .taskA, duration: 0.1, action: .increment)
+
+        guard case let .sleepThen(id, duration, action) = effect else {
+            Issue.record("sleepThen case가 생성되지 않음")
             return
         }
-        
-        let result = await operation()
-        #expect(result == .action(.increment))
+
+        #expect(id == .taskA)
+        #expect(duration == 0.1)
+        #expect(action == .increment)
     }
 
     // MARK: - Error Handling Tests
@@ -136,12 +132,12 @@ struct AsyncEffectTests {
         ) {
             .increment
         }
-        
+
         guard case let .run(_, operation) = effect else {
             Issue.record("runCatchingError이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let result = await operation()
         #expect(result == .action(.increment))
     }
@@ -149,18 +145,18 @@ struct AsyncEffectTests {
     @Test("Error Handling: .runCatchingError이 실패 시 errorAction을 실행한다")
     func errorHandling_runCatchingErrorExecutesErrorActionOnFailure() async {
         enum TestError: Error { case failure }
-        
+
         let effect: AsyncEffect<MockAction, MockCancelID> = .runCatchingError(
             errorAction: { _ in .decrement }
         ) {
             throw TestError.failure
         }
-        
+
         guard case let .run(_, operation) = effect else {
             Issue.record("runCatchingError이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let result = await operation()
         #expect(result == .action(.decrement))
     }
@@ -173,56 +169,49 @@ struct AsyncEffectTests {
         ) {
             .increment
         }
-        
+
         guard case let .run(id, _) = effect else {
             Issue.record("runCatchingError이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         #expect(id == .taskA)
     }
 
     // MARK: - Time-based Effect Tests
 
-    @Test("Time-based: .sleep이 지정된 시간만큼 대기한다")
-    func timeBased_sleepWaitsForSpecifiedDuration() async {
-        let startTime = Date()
-        let effect: AsyncEffect<MockAction, MockCancelID> = .sleep(for: 0.1)
-        
-        guard case let .run(_, operation) = effect else {
-            Issue.record("sleep이 .run Effect를 생성하지 않음")
-            return
-        }
-        
-        let result = await operation()
-        let elapsedTime = Date().timeIntervalSince(startTime)
-        
-        #expect(result == .none)
-        #expect(elapsedTime >= 0.1)
+    @Test("Time-based: .sleepThen case가 Equatable을 준수한다")
+    func timeBased_sleepThenIsEquatable() {
+        let effect1: AsyncEffect<MockAction, MockCancelID> = .sleepThen(id: .taskA, duration: 0.1, action: .increment)
+        let effect2: AsyncEffect<MockAction, MockCancelID> = .sleepThen(id: .taskA, duration: 0.1, action: .increment)
+        let effect3: AsyncEffect<MockAction, MockCancelID> = .sleepThen(id: .taskB, duration: 0.1, action: .increment)
+
+        #expect(effect1 == effect2)
+        #expect(effect1 != effect3)
     }
 
-    @Test("Time-based: .sleep이 ID를 올바르게 전달한다")
-    func timeBased_sleepPassesIDCorrectly() {
-        let effect: AsyncEffect<MockAction, MockCancelID> = .sleep(id: .taskA, for: 0.1)
-        
-        guard case let .run(id, _) = effect else {
-            Issue.record("sleep이 .run Effect를 생성하지 않음")
-            return
-        }
-        
-        #expect(id == .taskA)
+    @Test("Time-based: .timer case가 Equatable을 준수한다")
+    func timeBased_timerIsEquatable() {
+        let effect1: AsyncEffect<MockAction, MockCancelID> = .timer(id: .taskA, interval: 1.0, action: .increment)
+        let effect2: AsyncEffect<MockAction, MockCancelID> = .timer(id: .taskA, interval: 1.0, action: .increment)
+        let effect3: AsyncEffect<MockAction, MockCancelID> = .timer(id: .taskA, interval: 2.0, action: .increment)
+
+        #expect(effect1 == effect2)
+        #expect(effect1 != effect3)
     }
 
-    @Test("Time-based: .sleepThen이 ID를 올바르게 전달한다")
-    func timeBased_sleepThenPassesIDCorrectly() {
-        let effect: AsyncEffect<MockAction, MockCancelID> = .sleepThen(id: .taskA, for: 0.1, action: .increment)
-        
-        guard case let .run(id, _) = effect else {
-            Issue.record("sleepThen이 .run Effect를 생성하지 않음")
+    @Test("Time-based: .sleepThen이 ID가 nil일 때도 동작한다")
+    func timeBased_sleepThenWithNilID() {
+        let effect: AsyncEffect<MockAction, MockCancelID> = .sleepThen(id: nil, duration: 0.1, action: .increment)
+
+        guard case let .sleepThen(id, duration, action) = effect else {
+            Issue.record("sleepThen case가 생성되지 않음")
             return
         }
-        
-        #expect(id == .taskA)
+
+        #expect(id == nil)
+        #expect(duration == 0.1)
+        #expect(action == .increment)
     }
 
     // MARK: - Debounce Tests
@@ -233,15 +222,15 @@ struct AsyncEffectTests {
         let effect: AsyncEffect<MockAction, MockCancelID> = .debounce(id: .taskA, for: 0.1) {
             .increment
         }
-        
+
         guard case let .run(_, operation) = effect else {
             Issue.record("debounce가 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let result = await operation()
         let elapsedTime = Date().timeIntervalSince(startTime)
-        
+
         #expect(result == .action(.increment))
         #expect(elapsedTime >= 0.1)
     }
@@ -251,28 +240,28 @@ struct AsyncEffectTests {
         let effect: AsyncEffect<MockAction, MockCancelID> = .debounce(id: .taskA, for: 0.1) {
             .increment
         }
-        
+
         guard case let .run(id, _) = effect else {
             Issue.record("debounce가 .run Effect를 생성하지 않음")
             return
         }
-        
+
         #expect(id == .taskA)
     }
 
     @Test("Debounce: .debounce이 실패 시 에러를 반환한다")
     func debounce_debounceReturnsErrorOnFailure() async {
         enum TestError: Error { case failure }
-        
+
         let effect: AsyncEffect<MockAction, MockCancelID> = .debounce(id: .taskA, for: 0.1) {
             throw TestError.failure
         }
-        
+
         guard case let .run(_, operation) = effect else {
             Issue.record("debounce가 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let result = await operation()
         #expect(result == .error(SendableError(TestError.failure)))
     }
@@ -285,15 +274,15 @@ struct AsyncEffectTests {
         let effect: AsyncEffect<MockAction, MockCancelID> = .throttle(id: .taskA, interval: 0.1) {
             .increment
         }
-        
+
         guard case let .run(_, operation) = effect else {
             Issue.record("throttle이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let result = await operation()
         let elapsedTime = Date().timeIntervalSince(startTime)
-        
+
         #expect(result == .action(.increment))
         #expect(elapsedTime >= 0.1)
     }
@@ -303,34 +292,33 @@ struct AsyncEffectTests {
         let effect: AsyncEffect<MockAction, MockCancelID> = .throttle(id: .taskA, interval: 0.1) {
             .increment
         }
-        
+
         guard case let .run(id, _) = effect else {
             Issue.record("throttle이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         #expect(id == .taskA)
     }
 
     @Test("Throttle: .throttle이 실패 시 에러를 반환한다")
     func throttle_throttleReturnsErrorOnFailure() async {
         enum TestError: Error { case failure }
-        
+
         let effect: AsyncEffect<MockAction, MockCancelID> = .throttle(id: .taskA, interval: 0.1) {
             throw TestError.failure
         }
-        
+
         guard case let .run(_, operation) = effect else {
             Issue.record("throttle이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let result = await operation()
         #expect(result == .error(SendableError(TestError.failure)))
     }
 
     // MARK: - Edge Cases and Error Scenarios
-
 
     @Test("Edge Cases: 빈 배열로 .concurrent가 동작한다")
     func edgeCases_concurrentWithEmptyArray() {
@@ -341,12 +329,12 @@ struct AsyncEffectTests {
     @Test("Edge Cases: .run의 ID가 nil일 때 동작한다")
     func edgeCases_runWithNilID() {
         let effect: AsyncEffect<MockAction, MockCancelID> = .run { .increment }
-        
+
         guard case let .run(id, _) = effect else {
             Issue.record("run이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         #expect(id == nil)
     }
 
@@ -357,57 +345,43 @@ struct AsyncEffectTests {
         ) {
             .increment
         }
-        
+
         guard case let .run(id, _) = effect else {
             Issue.record("runCatchingError이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         #expect(id == nil)
     }
 
-    @Test("Edge Cases: .sleep의 ID가 nil일 때 동작한다")
-    func edgeCases_sleepWithNilID() {
-        let effect: AsyncEffect<MockAction, MockCancelID> = .sleep(for: 0.1)
-        
-        guard case let .run(id, _) = effect else {
-            Issue.record("sleep이 .run Effect를 생성하지 않음")
-            return
-        }
-        
-        #expect(id == nil)
-    }
+    @Test("Edge Cases: .timer의 ID가 nil일 때 동작한다")
+    func edgeCases_timerWithNilID() {
+        let effect: AsyncEffect<MockAction, MockCancelID> = .timer(id: nil, interval: 1.0, action: .increment)
 
-    @Test("Edge Cases: .sleepThen의 ID가 nil일 때 동작한다")
-    func edgeCases_sleepThenWithNilID() {
-        let effect: AsyncEffect<MockAction, MockCancelID> = .sleepThen(for: 0.1, action: .increment)
-        
-        guard case let .run(id, _) = effect else {
-            Issue.record("sleepThen이 .run Effect를 생성하지 않음")
+        guard case let .timer(id, interval, action) = effect else {
+            Issue.record("timer case가 생성되지 않음")
             return
         }
-        
+
         #expect(id == nil)
+        #expect(interval == 1.0)
+        #expect(action == .increment)
     }
 
     // MARK: - Performance and Timeout Tests
 
-    @Test("Performance: .sleep이 정확한 시간을 대기한다")
-    func performance_sleepWaitsAccurateTime() async {
-        let effect: AsyncEffect<MockAction, MockCancelID> = .sleep(for: 0.5)
-        
-        guard case let .run(_, operation) = effect else {
-            Issue.record("sleep이 .run Effect를 생성하지 않음")
+    @Test("Performance: .debounce이 ID를 올바르게 전달한다")
+    func performance_debouncePassesID() {
+        let effect: AsyncEffect<MockAction, MockCancelID> = .debounce(id: .taskA, for: 0.5) {
+            .increment
+        }
+
+        guard case let .run(id, _) = effect else {
+            Issue.record("debounce가 .run Effect를 생성하지 않음")
             return
         }
-        
-        let startTime = Date()
-        let result = await operation()
-        let elapsedTime = Date().timeIntervalSince(startTime)
-        
-        #expect(result == .none)
-        #expect(elapsedTime >= 0.5)
-        #expect(elapsedTime < 1.0) // 0.5초 + 여유시간
+
+        #expect(id == .taskA)
     }
 
     @Test("Performance: .debounce이 정확한 시간을 대기한다")
@@ -415,16 +389,16 @@ struct AsyncEffectTests {
         let effect: AsyncEffect<MockAction, MockCancelID> = .debounce(id: .taskA, for: 0.5) {
             .increment
         }
-        
+
         guard case let .run(_, operation) = effect else {
             Issue.record("debounce가 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let startTime = Date()
         let result = await operation()
         let elapsedTime = Date().timeIntervalSince(startTime)
-        
+
         #expect(result == .action(.increment))
         #expect(elapsedTime >= 0.5)
         #expect(elapsedTime < 1.0) // 0.5초 + 여유시간
@@ -435,16 +409,16 @@ struct AsyncEffectTests {
         let effect: AsyncEffect<MockAction, MockCancelID> = .throttle(id: .taskA, interval: 0.5) {
             .increment
         }
-        
+
         guard case let .run(_, operation) = effect else {
             Issue.record("throttle이 .run Effect를 생성하지 않음")
             return
         }
-        
+
         let startTime = Date()
         let result = await operation()
         let elapsedTime = Date().timeIntervalSince(startTime)
-        
+
         #expect(result == .action(.increment))
         #expect(elapsedTime >= 0.5)
         #expect(elapsedTime < 1.0) // 0.5초 + 여유시간
@@ -457,23 +431,22 @@ struct AsyncEffectTests {
         let effect1: AsyncEffect<MockAction, MockCancelID> = .action(.increment)
         let effect2: AsyncEffect<MockAction, MockCancelID> = .action(.decrement)
         let effect3: AsyncEffect<MockAction, MockCancelID> = .cancel(id: .taskA)
-        
+
         let concurrent = AsyncEffect.concurrent([effect1, effect2, effect3])
         let expected = AsyncEffect.concurrent([effect1, effect2, effect3])
-        
+
         #expect(concurrent == expected)
     }
 
-    @Test("Complex: .run과 .sleepThen을 조합한다")
+    @Test("Complex: .run과 .sleepThen case를 조합한다")
     func complex_combineRunAndSleepThen() {
         let runEffect: AsyncEffect<MockAction, MockCancelID> = .run { .increment }
-        let sleepEffect: AsyncEffect<MockAction, MockCancelID> = .sleepThen(for: 0.1, action: .decrement)
-        
-        // merge 제거됨 - 순차 실행은 배열로 처리
+        let sleepEffect: AsyncEffect<MockAction, MockCancelID> = .sleepThen(id: nil, duration: 0.1, action: .decrement)
+
+        // 순차 실행은 배열로 처리
         let sequentialEffects = [runEffect, sleepEffect]
         let expected = [runEffect, sleepEffect]
-        
+
         #expect(sequentialEffects == expected)
     }
 }
-
