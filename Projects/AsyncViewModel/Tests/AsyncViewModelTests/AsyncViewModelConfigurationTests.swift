@@ -6,6 +6,7 @@
 //
 
 @testable import AsyncViewModelCore
+import Foundation
 import Testing
 
 // MARK: - Mock Interceptor for Tests
@@ -36,17 +37,17 @@ final class MockInterceptor: ViewModelInterceptor, @unchecked Sendable {
 @MainActor
 final class ConfigTestMockLogger: ViewModelLogger, @unchecked Sendable {
     var options: LoggingOptions = .init()
-    var loggedActions: [String] = []
+    let formatter: LogFormatter = DefaultLogFormatter()
+    var loggedActions: [ActionInfo] = []
 
     func logAction(
-        _ action: String,
-        viewModel: String,
-        level _: LogLevel,
+        _ action: ActionInfo,
+        viewModel _: String,
         file _: String,
         function _: String,
         line _: Int
     ) {
-        loggedActions.append("[\(viewModel)] \(action)")
+        loggedActions.append(action)
     }
 
     func logStateChange(
@@ -57,17 +58,8 @@ final class ConfigTestMockLogger: ViewModelLogger, @unchecked Sendable {
         line _: Int
     ) {}
 
-    func logStateChange(
-        from _: String,
-        to _: String,
-        viewModel _: String,
-        file _: String,
-        function _: String,
-        line _: Int
-    ) {}
-
     func logEffect(
-        _: String,
+        _: EffectInfo,
         viewModel _: String,
         file _: String,
         function _: String,
@@ -75,7 +67,7 @@ final class ConfigTestMockLogger: ViewModelLogger, @unchecked Sendable {
     ) {}
 
     func logEffects(
-        _: [String],
+        _: [EffectInfo],
         viewModel _: String,
         file _: String,
         function _: String,
@@ -83,10 +75,8 @@ final class ConfigTestMockLogger: ViewModelLogger, @unchecked Sendable {
     ) {}
 
     func logPerformance(
-        operation _: String,
-        duration _: TimeInterval,
+        _: PerformanceInfo,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -95,7 +85,6 @@ final class ConfigTestMockLogger: ViewModelLogger, @unchecked Sendable {
     func logError(
         _: SendableError,
         viewModel _: String,
-        level _: LogLevel,
         file _: String,
         function _: String,
         line _: Int
@@ -247,7 +236,8 @@ struct AsyncViewModelConfigurationTests {
 
         config.addInterceptors([interceptor1, interceptor2])
 
-        let event = LogEvent.action("testAction", level: .info)
+        let actionInfo = ActionInfo(caseName: "testAction", associatedValues: [], fullDescription: "testAction")
+        let event = LogEvent.action(actionInfo)
         config.dispatch(event, viewModel: "TestVM", file: #file, function: #function, line: #line)
 
         #expect(interceptor1.interceptedEvents.count == 1)
@@ -353,6 +343,7 @@ struct ViewModelLoggingConfigGlobalOptionsTests {
 
         let loggingConfig = ViewModelLoggingConfig(
             mode: .enabled,
+            loggerMode: .shared,
             customOptions: nil
         )
 
@@ -371,6 +362,7 @@ struct ViewModelLoggingConfigGlobalOptionsTests {
         let customOptions = LoggingOptions(actionFormat: .compact) // 커스텀은 compact
         let loggingConfig = ViewModelLoggingConfig(
             mode: .enabled,
+            loggerMode: .shared,
             customOptions: customOptions
         )
 
@@ -409,7 +401,8 @@ struct ViewModelLoggingConfigGlobalOptionsTests {
 
         config.addInterceptors([interceptor1, interceptor2])
 
-        let event = LogEvent.action("testAction", level: .info)
+        let actionInfo = ActionInfo(caseName: "testAction", associatedValues: [], fullDescription: "testAction")
+        let event = LogEvent.action(actionInfo)
         config.dispatch(event, viewModel: "TestVM", file: #file, function: #function, line: #line)
 
         #expect(interceptor1.interceptedEvents.count == 1)
@@ -458,11 +451,11 @@ struct LoggerModeTests {
 struct LogEventTests {
     @Test("action 이벤트를 생성할 수 있다")
     func actionEventWorks() {
-        let event = LogEvent.action("testAction", level: .info)
+        let actionInfo = ActionInfo(caseName: "testAction", associatedValues: [], fullDescription: "testAction")
+        let event = LogEvent.action(actionInfo)
 
-        if case let .action(action, level) = event {
-            #expect(action == "testAction")
-            #expect(level == .info)
+        if case let .action(action) = event {
+            #expect(action.caseName == "testAction")
         } else {
             #expect(Bool(false), "Expected .action event")
         }
@@ -470,10 +463,12 @@ struct LogEventTests {
 
     @Test("effect 이벤트를 생성할 수 있다")
     func effectEventWorks() {
-        let event = LogEvent.effect("testEffect")
+        let effectInfo = EffectInfo(effectType: .run, id: "testID", relatedAction: nil, description: "testEffect")
+        let event = LogEvent.effect(effectInfo)
 
         if case let .effect(effect) = event {
-            #expect(effect == "testEffect")
+            #expect(effect.effectType == .run)
+            #expect(effect.id == "testID")
         } else {
             #expect(Bool(false), "Expected .effect event")
         }
@@ -481,12 +476,14 @@ struct LogEventTests {
 
     @Test("effects 이벤트를 생성할 수 있다")
     func effectsEventWorks() {
-        let event = LogEvent.effects(["effect1", "effect2"])
+        let effect1 = EffectInfo(effectType: .action, id: nil, relatedAction: nil, description: "effect1")
+        let effect2 = EffectInfo(effectType: .run, id: "id2", relatedAction: nil, description: "effect2")
+        let event = LogEvent.effects([effect1, effect2])
 
         if case let .effects(effects) = event {
             #expect(effects.count == 2)
-            #expect(effects[0] == "effect1")
-            #expect(effects[1] == "effect2")
+            #expect(effects[0].effectType == .action)
+            #expect(effects[1].effectType == .run)
         } else {
             #expect(Bool(false), "Expected .effects event")
         }
@@ -494,12 +491,18 @@ struct LogEventTests {
 
     @Test("performance 이벤트를 생성할 수 있다")
     func performanceEventWorks() {
-        let event = LogEvent.performance(operation: "testOp", duration: 0.5, level: .debug)
+        let perfInfo = PerformanceInfo(
+            operation: "testOp",
+            operationType: .custom,
+            duration: 0.5,
+            threshold: 0.1,
+            exceededThreshold: true
+        )
+        let event = LogEvent.performance(perfInfo)
 
-        if case let .performance(operation, duration, level) = event {
-            #expect(operation == "testOp")
-            #expect(duration == 0.5)
-            #expect(level == .debug)
+        if case let .performance(performance) = event {
+            #expect(performance.operation == "testOp")
+            #expect(performance.duration == 0.5)
         } else {
             #expect(Bool(false), "Expected .performance event")
         }
@@ -507,13 +510,11 @@ struct LogEventTests {
 
     @Test("error 이벤트를 생성할 수 있다")
     func errorEventWorks() {
-        let error = SendableError(NSError(domain: "test", code: 1))
-        let event = LogEvent.error(error, level: .error)
+        let error = SendableError(message: "test error", domain: "test", typeName: "TestError")
+        let event = LogEvent.error(error)
 
-        if case let .error(err, level) = event {
+        if case let .error(err) = event {
             #expect(err.domain == "test")
-            #expect(err.code == 1)
-            #expect(level == .error)
         } else {
             #expect(Bool(false), "Expected .error event")
         }
@@ -557,18 +558,10 @@ struct ViewModelLoggingConfigBuilderTests {
         #expect(config.options.effectFormat == .detailed)
     }
 
-    @Test("withMinimumLevel 빌더 메서드가 작동한다")
-    func withMinimumLevelWorks() {
-        let config = ViewModelLoggingConfig.default
-            .withMinimumLevel(.warning)
-
-        #expect(config.options.minimumLevel == .warning)
-    }
-
-    @Test("Logger가 ViewModelLoggingMode에 포함되어 작동한다")
-    func loggerInModeWorks() {
+    @Test("Logger가 별도 파라미터로 작동한다")
+    func loggerAsSeparateParameterWorks() {
         let customLogger = NoOpLogger()
-        let config = ViewModelLoggingConfig(mode: .enabled(.custom(customLogger)))
+        let config = ViewModelLoggingConfig(mode: .enabled, loggerMode: .custom(customLogger))
 
         if case let .custom(logger) = config.loggerMode {
             #expect(logger is NoOpLogger)
@@ -601,10 +594,11 @@ struct MacroParameterOptionsTests {
 
     @Test("매크로에서 커스텀 옵션 설정 시 customOptions가 생성된다")
     func macroCustomOptionsCreatesCustomOptions() {
-        // 매크로가 생성하는 코드를 시뮬레이션 (Logger는 mode에 포함)
+        // 매크로가 생성하는 코드를 시뮬레이션
         let customOptions = LoggingOptions(actionFormat: .compact)
         let config = ViewModelLoggingConfig(
-            mode: .enabled(.shared),
+            mode: .enabled,
+            loggerMode: .shared,
             customOptions: customOptions
         )
 
@@ -618,7 +612,8 @@ struct MacroParameterOptionsTests {
 
         // 매크로가 생성하는 코드 (옵션 미설정)
         let config = ViewModelLoggingConfig(
-            mode: .enabled(.shared),
+            mode: .enabled,
+            loggerMode: .shared,
             customOptions: nil
         )
 
@@ -630,106 +625,192 @@ struct MacroParameterOptionsTests {
 
     @Test("매크로 actionFormat 파라미터로 포맷을 설정할 수 있다")
     func macroActionFormatParameterWorks() {
-        // @AsyncViewModel(actionFormat: .compact) 가 생성하는 코드
+        // @AsyncViewModel(format: .action(.compact)) 가 생성하는 코드
         let customOptions = LoggingOptions(actionFormat: .compact)
         let config = ViewModelLoggingConfig(
             mode: .enabled,
+            loggerMode: .shared,
             customOptions: customOptions
         )
 
-        #expect(config.options.actionFormat == .compact)
+        #expect(config.options.actionFormat == LogFormat.compact)
     }
 
     @Test("매크로에서 여러 옵션을 조합할 수 있다")
     func macroCombinedOptionsWork() {
-        // @AsyncViewModel(actionFormat: .compact, effectFormat: .detailed)
+        // @AsyncViewModel(format: .perCategory(action: .compact, effect: .detailed))
         let customOptions = LoggingOptions(
             actionFormat: .compact,
             effectFormat: .detailed
         )
         let config = ViewModelLoggingConfig(
             mode: .enabled,
+            loggerMode: .shared,
             customOptions: customOptions
         )
 
-        #expect(config.options.actionFormat == .compact)
-        #expect(config.options.effectFormat == .detailed)
+        #expect(config.options.actionFormat == LogFormat.compact)
+        #expect(config.options.effectFormat == LogFormat.detailed)
     }
 }
 
-// MARK: - ViewModelLoggingMode Logger Integration Tests
+// MARK: - LoggingMode Tests
 
 @MainActor
-@Suite("ViewModelLoggingMode Logger Integration Tests")
-struct ViewModelLoggingModeLoggerTests {
-    @Test("enabled에 Logger가 포함된다")
-    func enabledContainsLogger() {
-        let mode: ViewModelLoggingMode = .enabled(.shared)
+@Suite("LoggingMode Tests")
+struct LoggingModeNewTests {
+    @Test("enabled 모드는 모든 카테고리를 활성화한다")
+    func enabledEnablesAllCategories() {
+        let mode: LoggingMode = .enabled
 
-        if case .shared = mode.logger {
-            // OK
-        } else {
-            #expect(Bool(false), "Expected .shared logger")
-        }
+        #expect(mode.isEnabled)
+        #expect(mode.isCategoryEnabled(.action))
+        #expect(mode.isCategoryEnabled(.stateChange))
+        #expect(mode.isCategoryEnabled(.effect))
+        #expect(mode.isCategoryEnabled(.performance))
+        #expect(mode.isCategoryEnabled(.error))
     }
 
-    @Test("enabled에 커스텀 Logger를 지정할 수 있다")
-    func enabledWithCustomLogger() {
-        let customLogger = NoOpLogger()
-        let mode: ViewModelLoggingMode = .enabled(.custom(customLogger))
+    @Test("disabled 모드는 모든 카테고리를 비활성화한다")
+    func disabledDisablesAllCategories() {
+        let mode: LoggingMode = .disabled
 
-        if case let .custom(logger) = mode.logger {
-            #expect(logger is NoOpLogger)
-        } else {
-            #expect(Bool(false), "Expected .custom logger")
-        }
+        #expect(!mode.isEnabled)
+        #expect(!mode.isCategoryEnabled(.action))
+        #expect(!mode.isCategoryEnabled(.stateChange))
+        #expect(!mode.isCategoryEnabled(.error))
     }
 
-    @Test("minimal에 Logger가 포함된다")
-    func minimalContainsLogger() {
-        let mode: ViewModelLoggingMode = .minimal(.shared)
+    @Test("minimal 모드는 에러만 활성화한다")
+    func minimalOnlyEnablesError() {
+        let mode: LoggingMode = .minimal
 
-        if case .shared = mode.logger {
-            // OK
-        } else {
-            #expect(Bool(false), "Expected .shared logger")
-        }
+        #expect(mode.isEnabled)
+        #expect(!mode.isCategoryEnabled(.action))
+        #expect(!mode.isCategoryEnabled(.stateChange))
+        #expect(mode.isCategoryEnabled(.error))
     }
 
-    @Test("static var enabled는 .shared Logger를 사용한다")
-    func staticEnabledUsesSharedLogger() {
-        let mode: ViewModelLoggingMode = .enabled
+    @Test("only 모드는 지정한 카테고리만 활성화한다")
+    func onlyEnablesSpecificCategories() {
+        let mode: LoggingMode = .only(.action, .error)
 
-        if case .shared = mode.logger {
-            // OK
-        } else {
-            #expect(Bool(false), "Expected .shared logger")
-        }
+        #expect(mode.isEnabled)
+        #expect(mode.isCategoryEnabled(.action))
+        #expect(mode.isCategoryEnabled(.error))
+        #expect(!mode.isCategoryEnabled(.stateChange))
+        #expect(!mode.isCategoryEnabled(.effect))
     }
 
-    @Test("disabled는 .shared Logger를 반환한다")
-    func disabledReturnsSharedLogger() {
-        let mode: ViewModelLoggingMode = .disabled
+    @Test("excluding 모드는 지정한 카테고리만 비활성화한다")
+    func excludingDisablesSpecificCategories() {
+        let mode: LoggingMode = .excluding(.stateChange)
 
-        if case .shared = mode.logger {
-            // OK
-        } else {
-            #expect(Bool(false), "Expected .shared logger for disabled mode")
-        }
+        #expect(mode.isEnabled)
+        #expect(mode.isCategoryEnabled(.action))
+        #expect(mode.isCategoryEnabled(.error))
+        #expect(!mode.isCategoryEnabled(.stateChange))
+        #expect(mode.isCategoryEnabled(.effect))
     }
 
-    @Test("custom 모드에서 Logger를 지정할 수 있다")
-    func customModeWithLogger() {
-        let customLogger = NoOpLogger()
-        let mode: ViewModelLoggingMode = .custom(
-            categories: [.action, .error],
-            logger: .custom(customLogger)
+    @Test("noStateChanges 프리셋이 stateChange를 제외한다")
+    func noStateChangesPreset() {
+        let mode: LoggingMode = .noStateChanges
+
+        #expect(mode.isEnabled)
+        #expect(mode.isCategoryEnabled(.action))
+        #expect(!mode.isCategoryEnabled(.stateChange))
+        #expect(mode.isCategoryEnabled(.error))
+    }
+
+    @Test("performanceOnly 프리셋이 performance와 error만 활성화한다")
+    func performanceOnlyPreset() {
+        let mode: LoggingMode = .performanceOnly
+
+        #expect(mode.isEnabled)
+        #expect(!mode.isCategoryEnabled(.action))
+        #expect(!mode.isCategoryEnabled(.stateChange))
+        #expect(mode.isCategoryEnabled(.performance))
+        #expect(mode.isCategoryEnabled(.error))
+    }
+}
+
+// MARK: - LogFormatConfig Tests
+
+@MainActor
+@Suite("LogFormatConfig Tests")
+struct LogFormatConfigTests {
+    @Test("compact은 모든 카테고리에 compact 적용")
+    func compactAppliesCompactToAll() {
+        let formatConfig: LogFormatConfig = .compact
+        let options = formatConfig.toLoggingOptions()
+
+        #expect(options.actionFormat == .compact)
+        #expect(options.stateFormat == .compact)
+        #expect(options.effectFormat == .compact)
+    }
+
+    @Test("standard는 모든 카테고리에 standard 적용")
+    func standardAppliesStandardToAll() {
+        let formatConfig: LogFormatConfig = .standard
+        let options = formatConfig.toLoggingOptions()
+
+        #expect(options.actionFormat == .standard)
+        #expect(options.stateFormat == .standard)
+        #expect(options.effectFormat == .standard)
+    }
+
+    @Test("detailed은 모든 카테고리에 detailed 적용")
+    func detailedAppliesDetailedToAll() {
+        let formatConfig: LogFormatConfig = .detailed
+        let options = formatConfig.toLoggingOptions()
+
+        #expect(options.actionFormat == .detailed)
+        #expect(options.stateFormat == .detailed)
+        #expect(options.effectFormat == .detailed)
+    }
+
+    @Test("perCategory는 개별 포맷을 적용한다")
+    func perCategoryAppliesIndividualFormats() {
+        let formatConfig: LogFormatConfig = .perCategory(
+            action: .compact,
+            state: .detailed,
+            effect: .standard
         )
+        let options = formatConfig.toLoggingOptions()
 
-        if case let .custom(logger) = mode.logger {
-            #expect(logger is NoOpLogger)
-        } else {
-            #expect(Bool(false), "Expected .custom logger")
-        }
+        #expect(options.actionFormat == .compact)
+        #expect(options.stateFormat == .detailed)
+        #expect(options.effectFormat == .standard)
+    }
+
+    @Test("action 팩토리 메서드가 action만 변경한다")
+    func actionFactoryChangesOnlyAction() {
+        let formatConfig: LogFormatConfig = .action(.compact)
+        let options = formatConfig.toLoggingOptions()
+
+        #expect(options.actionFormat == .compact)
+        #expect(options.stateFormat == .standard)
+        #expect(options.effectFormat == .standard)
+    }
+
+    @Test("state 팩토리 메서드가 state만 변경한다")
+    func stateFactoryChangesOnlyState() {
+        let formatConfig: LogFormatConfig = .state(.detailed)
+        let options = formatConfig.toLoggingOptions()
+
+        #expect(options.actionFormat == .standard)
+        #expect(options.stateFormat == .detailed)
+        #expect(options.effectFormat == .standard)
+    }
+
+    @Test("effect 팩토리 메서드가 effect만 변경한다")
+    func effectFactoryChangesOnlyEffect() {
+        let formatConfig: LogFormatConfig = .effect(.compact)
+        let options = formatConfig.toLoggingOptions()
+
+        #expect(options.actionFormat == .standard)
+        #expect(options.stateFormat == .standard)
+        #expect(options.effectFormat == .compact)
     }
 }

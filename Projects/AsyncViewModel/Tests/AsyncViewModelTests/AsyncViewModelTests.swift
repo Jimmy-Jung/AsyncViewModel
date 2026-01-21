@@ -160,7 +160,7 @@ struct AsyncViewModelTests {
                 state.isLongTaskRunning = true
                 return [.sleepThen(
                     id: CancelID.longRunningTask,
-                    for: TimeInterval(duration) / 1_000_000_000, // nanoseconds를 초 단위로 변환
+                    duration: TimeInterval(duration) / 1_000_000_000, // nanoseconds를 초 단위로 변환
                     action: .longRunningTaskFinished
                 )]
 
@@ -182,7 +182,7 @@ struct AsyncViewModelTests {
             case let .triggerRestartableTask(value):
                 return [.sleepThen(
                     id: CancelID.restartableTask,
-                    for: 1.0, // 1초
+                    duration: 1.0, // 1초
                     action: .restartableTaskCompleted(value)
                 )]
 
